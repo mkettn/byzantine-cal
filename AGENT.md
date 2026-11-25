@@ -8,5 +8,5 @@ C++20 CLI that validates a fasting-calendar YAML file (v0.1: validation only).
 - `cmake/Find*.cmake` - one module per dependency (find_package, else FetchContent)
 - `tests/` - `test_main.cpp` (unit); `valid/*.yml` must pass, `invalid/*.yml` need an exact exit code and message (see CMakeLists.txt, `run_expect.cmake`)
 
-Differences from the Python `byzantine` project: dates are `DD.MM`, not `MMDD`.
+Dates are `DD.MM` (the old `MMDD` form is rejected).
 Keep new dependencies in their own `cmake/Find<lib>.cmake`.
