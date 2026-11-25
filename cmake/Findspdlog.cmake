@@ -1,7 +1,8 @@
 # Finds spdlog; falls back to FetchContent. Provides spdlog::spdlog.
 include(FetchContent)
 
-# Pinned to the version shipped in Ubuntu 24.04 LTS (1.12.0).
+# 1.12.0 is the version shipped in Ubuntu 24.04 LTS. An installed copy of this
+# version or newer is accepted; the same version is what gets fetched otherwise.
 set(_bcal_spdlog_version 1.12.0)
 
 if(NOT BCAL_FORCE_FETCH)

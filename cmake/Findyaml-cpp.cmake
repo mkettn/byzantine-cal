@@ -1,7 +1,8 @@
 # Finds yaml-cpp; falls back to FetchContent. Provides yaml-cpp::yaml-cpp.
 include(FetchContent)
 
-# Pinned to the version shipped in Ubuntu 24.04 LTS (0.8.0).
+# 0.8.0 is the version shipped in Ubuntu 24.04 LTS. An installed copy of this
+# version or newer is accepted; the same version is what gets fetched otherwise.
 set(_bcal_yaml_version 0.8.0)
 
 if(NOT BCAL_FORCE_FETCH)

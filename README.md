@@ -42,10 +42,11 @@ Requires CMake >= 3.24 and a C++20 compiler. Dependencies
 installed copy is used if found, otherwise it is fetched with FetchContent.
 Use `-DBCAL_FORCE_FETCH=ON` to always fetch.
 
-Versions are pinned to those in Ubuntu 24.04 LTS, so the system packages
-(`libyaml-cpp-dev`, `libspdlog-dev`, `libdocopt-dev`) and the fetched sources match:
+Installed libraries of these versions **or newer** are accepted (`find_package` minimum
+version). If none is found, exactly these versions, the ones shipped in Ubuntu 24.04 LTS
+(`libyaml-cpp-dev`, `libspdlog-dev`, `libdocopt-dev`), are fetched:
 
-| Library | Version |
+| Library | Minimum / fetched version |
 |---|---|
 | yaml-cpp | 0.8.0 |
 | spdlog | 1.12.0 |

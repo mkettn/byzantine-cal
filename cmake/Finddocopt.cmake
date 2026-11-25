@@ -1,7 +1,8 @@
 # Finds docopt.cpp; falls back to FetchContent. Provides target docopt_s.
 include(FetchContent)
 
-# Pinned to the version shipped in Ubuntu 24.04 LTS (0.6.3).
+# 0.6.3 is the version shipped in Ubuntu 24.04 LTS. An installed copy of this
+# version or newer is accepted; the same version is what gets fetched otherwise.
 set(_bcal_docopt_version 0.6.3)
 
 if(NOT BCAL_FORCE_FETCH)
