@@ -1,6 +1,6 @@
 # Agent Guidelines for byzantine-cal
 
-C++20 CLI that validates a fasting-calendar YAML file (v0.1: validation only).
+C++20 CLI for Orthodox fasting calendars. It parses and validates the dates and date ranges of a calendar YAML file.
 
 - `src/day.*` - date syntax parser (`DD.MM`, `e[+-]N[d|w][<|>wd]`)
 - `src/validator.*` - checks the YAML structure, ranges, weekdays, rules

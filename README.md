@@ -1,8 +1,7 @@
 # byzantine-cal
 
-Orthodox fasting calendar tool. Version 0.1
-reads a calendar YAML file and checks that all dates, date ranges and rules are
-valid. Nothing is generated yet.
+Orthodox fasting calendar tool. It reads a calendar YAML file and checks that
+all dates, date ranges and rules are valid.
 
 ## Date syntax
 
