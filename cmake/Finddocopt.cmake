@@ -1,10 +1,11 @@
 # Finds docopt.cpp; falls back to FetchContent. Provides target docopt_s.
 include(FetchContent)
 
-set(_bcal_docopt_version v0.6.3)
+# Pinned to the version shipped in Ubuntu 24.04 LTS (0.6.3).
+set(_bcal_docopt_version 0.6.3)
 
 if(NOT BCAL_FORCE_FETCH)
-  find_package(docopt CONFIG QUIET)
+  find_package(docopt ${_bcal_docopt_version} CONFIG QUIET)
 endif()
 
 if(NOT TARGET docopt_s AND NOT TARGET docopt)
@@ -15,7 +16,7 @@ if(NOT TARGET docopt_s AND NOT TARGET docopt)
   set(WITH_STATIC ON CACHE BOOL "" FORCE)
   FetchContent_Declare(docopt
     GIT_REPOSITORY https://github.com/docopt/docopt.cpp.git
-    GIT_TAG ${_bcal_docopt_version}
+    GIT_TAG v${_bcal_docopt_version}
     GIT_SHALLOW TRUE)
   FetchContent_MakeAvailable(docopt)
 

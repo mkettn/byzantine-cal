@@ -42,6 +42,15 @@ Requires CMake >= 3.24 and a C++20 compiler. Dependencies
 installed copy is used if found, otherwise it is fetched with FetchContent.
 Use `-DBCAL_FORCE_FETCH=ON` to always fetch.
 
+Versions are pinned to those in Ubuntu 24.04 LTS, so the system packages
+(`libyaml-cpp-dev`, `libspdlog-dev`, `libdocopt-dev`) and the fetched sources match:
+
+| Library | Version |
+|---|---|
+| yaml-cpp | 0.8.0 |
+| spdlog | 1.12.0 |
+| docopt.cpp | 0.6.3 |
+
 ```bash
 cmake -S . -B build
 cmake --build build -j

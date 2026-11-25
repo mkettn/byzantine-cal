@@ -1,10 +1,11 @@
 # Finds spdlog; falls back to FetchContent. Provides spdlog::spdlog.
 include(FetchContent)
 
-set(_bcal_spdlog_version v1.14.1)
+# Pinned to the version shipped in Ubuntu 24.04 LTS (1.12.0).
+set(_bcal_spdlog_version 1.12.0)
 
 if(NOT BCAL_FORCE_FETCH)
-  find_package(spdlog CONFIG QUIET)
+  find_package(spdlog ${_bcal_spdlog_version} CONFIG QUIET)
 endif()
 
 if(NOT TARGET spdlog::spdlog)
@@ -14,7 +15,7 @@ if(NOT TARGET spdlog::spdlog)
   set(SPDLOG_INSTALL OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG ${_bcal_spdlog_version}
+    GIT_TAG v${_bcal_spdlog_version}
     GIT_SHALLOW TRUE)
   FetchContent_MakeAvailable(spdlog)
 endif()
