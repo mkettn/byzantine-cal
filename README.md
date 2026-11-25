@@ -30,7 +30,8 @@ Dates are written **day first, then month, separated by a dot**:
 ```
 
 **Always put dates in quotes** (`"06.01"`); some YAML tools read an unquoted `06.01` as the number 6.01.
-Each date may appear only once, and a file must contain a single YAML document.
+A date may appear more than once; later entries override earlier ones.
+A file must contain a single YAML document.
 
 Rules: `no_fast`, `no_meat`, `no_dairy`, `no_fish`, `no_oil`.
 Weekdays (lowercase): `mon tue wed thu fri sat sun`, written either as one range (`mon..fri`, `sat..mon`) or a comma list (`wed,fri`). Weekdays must not repeat within one range entry.

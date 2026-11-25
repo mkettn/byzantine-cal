@@ -40,25 +40,6 @@ std::string trim(const std::string& s) {
   return s.substr(b, s.find_last_not_of(" \t") - b + 1);
 }
 
-std::string canonical_day(const std::string& text) {
-  auto d = parse_day(text);
-  if (!d.day) return text;
-  const auto& v = *d.day;
-  if (v.kind == Day::Kind::Solar)
-    return std::to_string(v.day) + "." + std::to_string(v.month);
-  std::string o = "e" + std::to_string(v.offset_days);
-  if (v.prev_weekday) o += "<" + std::to_string(*v.prev_weekday);
-  if (v.next_weekday) o += ">" + std::to_string(*v.next_weekday);
-  return o;
-}
-
-std::string canonical_key(const std::string& key) {
-  auto pos = key.find("..");
-  if (pos == std::string::npos) return canonical_day(key);
-  return canonical_day(key.substr(0, pos)) + ".." +
-         canonical_day(key.substr(pos + 2));
-}
-
 void check_day(Report& r, const YAML::Node& at, const std::string& text) {
   auto res = parse_day(text);
   if (!res.day) add(r, at, "invalid date: " + res.error);
@@ -212,7 +193,6 @@ Report validate(const YAML::Node& root) {
     add(r, root, "calendar must be a list (each item starts with \"- \")");
     return r;
   }
-  std::set<std::string> seen_keys;
   for (const auto& item : root) {
     if (!item.IsMap()) {
       add(r, item, "list item must be \"date: value\"");
@@ -225,8 +205,6 @@ Report validate(const YAML::Node& root) {
       }
       ++r.entries;
       const auto& key = kv.first.Scalar();
-      if (!seen_keys.insert(canonical_key(key)).second)
-        add(r, kv.first, "date \"" + key + "\" is listed more than once");
       if (key.find("..") != std::string::npos)
         check_range(r, kv.first, key, kv.second);
       else
