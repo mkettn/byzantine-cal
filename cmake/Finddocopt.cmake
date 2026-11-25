@@ -18,6 +18,17 @@ if(NOT TARGET docopt_s AND NOT TARGET docopt)
     GIT_TAG ${_bcal_docopt_version}
     GIT_SHALLOW TRUE)
   FetchContent_MakeAvailable(docopt)
+
+  # The source tree has docopt.h at its root, but installed copies (and our
+  # sources) use <docopt/docopt.h>. Stage the headers under that name.
+  set(_bcal_docopt_inc "${CMAKE_BINARY_DIR}/_docopt_include")
+  file(GLOB _bcal_docopt_headers "${docopt_SOURCE_DIR}/*.h")
+  file(COPY ${_bcal_docopt_headers} DESTINATION "${_bcal_docopt_inc}/docopt")
+  foreach(_t docopt_s docopt)
+    if(TARGET ${_t})
+      target_include_directories(${_t} PUBLIC "${_bcal_docopt_inc}")
+    endif()
+  endforeach()
 endif()
 
 # Installed package exports "docopt"; normalise to docopt_s for consumers.
