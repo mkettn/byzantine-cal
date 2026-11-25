@@ -20,7 +20,8 @@ struct Report {
 // Validates a parsed calendar document (a sequence of maps).
 Report validate(const YAML::Node& root);
 
-// Loads and validates a file. YAML syntax errors become a Report error.
+// Loads and validates a file. YAML syntax errors become a Report error;
+// unreadable files (or directories) throw YAML::BadFile.
 Report validate_file(const std::string& path);
 
 bool is_valid_rule(const std::string& rule);

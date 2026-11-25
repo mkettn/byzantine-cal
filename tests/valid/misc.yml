@@ -1,0 +1,6 @@
+- 06.01: Theophany
+- "e-7w<wed": x
+- "25.12": {name: Nativity, rule: no_fish}
+- "01.01..10.01":
+    wed, fri: no_fish
+    sat: no_oil

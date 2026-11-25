@@ -1,11 +1,20 @@
 name: build
 on: [push, pull_request]
 jobs:
-  build:
+  fetch-deps:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Configure (fetches dependencies)
         run: cmake -S . -B build -DBCAL_FORCE_FETCH=ON -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build -j
+      - run: ctest --test-dir build --output-on-failure
+  system-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libyaml-cpp-dev libspdlog-dev libdocopt-dev
+      - name: Configure (uses installed libraries)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build build -j
       - run: ctest --test-dir build --output-on-failure

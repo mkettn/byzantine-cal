@@ -9,6 +9,8 @@ endif()
 
 if(NOT TARGET yaml-cpp::yaml-cpp)
   message(STATUS "yaml-cpp: fetching ${_bcal_yaml_version}")
+  # Old dependencies declare cmake_minimum_required < 3.5 (rejected by CMake 4).
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
   set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
   set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
   set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)

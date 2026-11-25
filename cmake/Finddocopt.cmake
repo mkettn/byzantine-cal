@@ -9,6 +9,8 @@ endif()
 
 if(NOT TARGET docopt_s AND NOT TARGET docopt)
   message(STATUS "docopt: fetching ${_bcal_docopt_version}")
+  # Old dependencies declare cmake_minimum_required < 3.5 (rejected by CMake 4).
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
   set(WITH_TESTS OFF CACHE BOOL "" FORCE)
   set(WITH_STATIC ON CACHE BOOL "" FORCE)
   FetchContent_Declare(docopt

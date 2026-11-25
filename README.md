@@ -11,10 +11,10 @@ Same idea as byzantine, but written **day first, then month, separated by a dot*
 | Syntax | Meaning |
 |---|---|
 | `25.12` / `6.1` / `06.01` | Fixed date (leading zero optional). `29.02` is accepted (leap years). |
-| `01.02..14.02` | Range of fixed dates. May wrap over New Year (`15.12..05.01`). |
+| `01.02..14.02` | Range of fixed dates. A range may cross New Year (`15.12..05.01`); the validator accepts it, but the Python byzantine does not expand such ranges yet. |
 | `e`, `e+39`, `e-7d`, `e-7w` | Relative to Orthodox Easter (days, or weeks with `w`). |
 | `e-7w<wed` / `e+1w>sun` | Then move to the previous (`<`) / next (`>`) weekday. |
-| `e-49d..e` | Range between Easter-relative dates. |
+| `e-49d..e` | Range between Easter-relative dates (the end must not be before the start). |
 
 ## File format
 
@@ -29,8 +29,11 @@ Same idea as byzantine, but written **day first, then month, separated by a dot*
     sat,sun: no_dairy
 ```
 
+**Always put dates in quotes** (`"06.01"`); some YAML tools read an unquoted `06.01` as the number 6.01.
+Each date may appear only once, and a file must contain a single YAML document.
+
 Rules: `no_fast`, `no_meat`, `no_dairy`, `no_fish`, `no_oil`.
-Weekdays: `mon tue wed thu fri sat sun`, as `mon..fri` or `wed,fri`.
+Weekdays (lowercase): `mon tue wed thu fri sat sun`, written either as one range (`mon..fri`, `sat..mon`) or a comma list (`wed,fri`). Weekdays must not repeat within one range entry.
 
 ## Build
 
@@ -48,7 +51,7 @@ ctest --test-dir build
 ## Usage
 
 ```bash
-byzantine-cal [-v | -q] <yaml_file>
+byzantine-cal [(-v | -q)] <yaml_file>
 ```
 
-Exit status: `0` valid, `1` invalid (errors are logged with line numbers), `2` file unreadable.
+Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` file unreadable (or a directory), `3` wrong command line.
