@@ -34,7 +34,7 @@ A date may appear more than once; later entries override earlier ones.
 A file must contain a single YAML document.
 
 Rules: `no_fast`, `no_meat`, `no_dairy`, `no_fish`, `no_oil`.
-Weekdays (lowercase): `mon tue wed thu fri sat sun`, written either as one range (`mon..fri`, `sat..mon`) or a comma list (`wed,fri`). Weekdays must not repeat within one range entry.
+Weekdays (lowercase): `mon tue wed thu fri sat sun`, written either as one range (`mon..fri`, `sat..mon`) or a comma list (`wed,fri`). If weekdays overlap within one range entry (`mon..fri` then `wed`), later keys override earlier ones.
 
 ## Build
 

@@ -124,23 +124,14 @@ void check_range(Report& r, const YAML::Node& key_node, const std::string& key,
 
   if (value.size() == 0)
     add(r, key_node, "range \"" + key + "\" has no weekday rules");
-  std::set<int> seen;
   for (const auto& kv : value) {
     if (!kv.first.IsScalar()) {
       add(r, kv.first, "weekday key must be text");
       continue;
     }
     std::string err;
-    auto days = weekdays_of(kv.first.Scalar(), err);
-    if (!err.empty())
-      add(r, kv.first, err);
-    else
-      for (int d : days)
-        if (!seen.insert(d).second) {
-          add(r, kv.first, "weekday listed twice in range \"" + key +
-                               "\" (in \"" + kv.first.Scalar() + "\")");
-          break;
-        }
+    weekdays_of(kv.first.Scalar(), err);  // validation only; later keys win
+    if (!err.empty()) add(r, kv.first, err);
     check_rule(r, kv.second, kv.second);
   }
 }
