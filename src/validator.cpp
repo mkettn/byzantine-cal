@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <filesystem>
 #include <set>
 #include <sstream>
@@ -140,6 +141,8 @@ void check_range(Report& r, const YAML::Node& key_node, const std::string& key,
       de.day->offset_days < ds.day->offset_days)
     add(r, key_node, "range \"" + key + "\" ends before it starts");
 
+  if (value.size() == 0)
+    add(r, key_node, "range \"" + key + "\" has no weekday rules");
   std::set<int> seen;
   for (const auto& kv : value) {
     if (!kv.first.IsScalar()) {
