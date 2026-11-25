@@ -5,9 +5,7 @@ include(FetchContent)
 # version or newer is accepted; the same version is what gets fetched otherwise.
 set(_bcal_yaml_version 0.8.0)
 
-if(NOT BCAL_FORCE_FETCH)
-  find_package(yaml-cpp ${_bcal_yaml_version} CONFIG QUIET)
-endif()
+find_package(yaml-cpp ${_bcal_yaml_version} CONFIG QUIET)
 
 if(NOT TARGET yaml-cpp::yaml-cpp)
   message(STATUS "yaml-cpp: fetching ${_bcal_yaml_version}")

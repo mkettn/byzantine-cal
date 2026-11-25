@@ -5,9 +5,7 @@ include(FetchContent)
 # version or newer is accepted; the same version is what gets fetched otherwise.
 set(_bcal_docopt_version 0.6.3)
 
-if(NOT BCAL_FORCE_FETCH)
-  find_package(docopt ${_bcal_docopt_version} CONFIG QUIET)
-endif()
+find_package(docopt ${_bcal_docopt_version} CONFIG QUIET)
 
 if(NOT TARGET docopt_s AND NOT TARGET docopt)
   message(STATUS "docopt: fetching ${_bcal_docopt_version}")

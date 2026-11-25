@@ -5,9 +5,7 @@ include(FetchContent)
 # version or newer is accepted; the same version is what gets fetched otherwise.
 set(_bcal_spdlog_version 1.12.0)
 
-if(NOT BCAL_FORCE_FETCH)
-  find_package(spdlog ${_bcal_spdlog_version} CONFIG QUIET)
-endif()
+find_package(spdlog ${_bcal_spdlog_version} CONFIG QUIET)
 
 if(NOT TARGET spdlog::spdlog)
   message(STATUS "spdlog: fetching ${_bcal_spdlog_version}")

@@ -40,7 +40,6 @@ Weekdays (lowercase): `mon tue wed thu fri sat sun`, written either as one range
 Requires CMake >= 3.24 and a C++20 compiler. Dependencies
 (yaml-cpp, spdlog, docopt.cpp) are resolved by `cmake/Find<lib>.cmake`: an
 installed copy is used if found, otherwise it is fetched with FetchContent.
-Use `-DBCAL_FORCE_FETCH=ON` to always fetch.
 
 Installed libraries of these versions **or newer** are accepted (`find_package` minimum
 version). If none is found, exactly these versions, the ones shipped in Ubuntu 24.04 LTS
