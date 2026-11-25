@@ -3,12 +3,12 @@
 - "25.03":
     name: Annunciation
     rule: no_fish
-- "e": Easter Sunday
-- "e+39": Ascension
+- "p": Pascha
+- "p+39": Ascension
 - "01.02..14.02":
     mon..fri: no_meat
     sat..sun: no_dairy
-- "e-49d..e":
+- "p-49d..p":
     mon..fri: no_oil
 - "15.11..24.12":
     mon..sun: no_meat

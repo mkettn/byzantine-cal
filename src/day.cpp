@@ -54,10 +54,10 @@ DayResult parse_solar(const std::string& t) {
   return {r, {}};
 }
 
-DayResult parse_easter(const std::string& t) {
+DayResult parse_pascha(const std::string& t) {
   Day r;
-  r.kind = Day::Kind::Easter;
-  size_t i = 1;  // skip 'e'
+  r.kind = Day::Kind::Pascha;
+  size_t i = 1;  // skip 'p'
 
   if (i < t.size() && (t[i] == '+' || t[i] == '-')) {
     int sign = t[i] == '-' ? -1 : 1;
@@ -104,7 +104,7 @@ DayResult parse_day(const std::string& text) {
   if (text.empty()) return fail("empty date");
   if (text.find_first_of(" \t") != std::string::npos)
     return fail("whitespace not allowed in date \"" + text + "\"");
-  return (text[0] == 'e' || text[0] == 'E') ? parse_easter(lower(text))
+  return (text[0] == 'p' || text[0] == 'P') ? parse_pascha(lower(text))
                                             : parse_solar(text);
 }
 

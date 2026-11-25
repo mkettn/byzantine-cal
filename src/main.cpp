@@ -14,7 +14,7 @@
 static const char USAGE[] = R"(byzantine-cal - check a fasting calendar file.
 
 Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
-and Easter-relative days as e, e+39, e-7w, e-7w<wed.
+and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
   byzantine-cal [(-v | -q)] <yaml_file>

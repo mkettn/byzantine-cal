@@ -114,10 +114,10 @@ void check_range(Report& r, const YAML::Node& key_node, const std::string& key,
         "range \"" + key + "\" needs weekday rules, e.g. mon..fri: no_meat");
     return;
   }
-  // Easter-relative range that ends before it starts can never match.
+  // Pascha-relative range that ends before it starts can never match.
   auto ds = parse_day(start), de = parse_day(end);
-  if (ds.day && de.day && ds.day->kind == Day::Kind::Easter &&
-      de.day->kind == Day::Kind::Easter && !ds.day->prev_weekday &&
+  if (ds.day && de.day && ds.day->kind == Day::Kind::Pascha &&
+      de.day->kind == Day::Kind::Pascha && !ds.day->prev_weekday &&
       !ds.day->next_weekday && !de.day->prev_weekday && !de.day->next_weekday &&
       de.day->offset_days < ds.day->offset_days)
     add(r, key_node, "range \"" + key + "\" ends before it starts");

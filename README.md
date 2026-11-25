@@ -11,9 +11,9 @@ Dates are written **day first, then month, separated by a dot**:
 |---|---|
 | `25.12` / `6.1` / `06.01` | Fixed date (leading zero optional). `29.02` is accepted (leap years). |
 | `01.02..14.02` | Range of fixed dates. A range may cross New Year (`15.12..05.01`); the validator accepts it. |
-| `e`, `e+39`, `e-7d`, `e-7w` | Relative to Orthodox Easter (days, or weeks with `w`). |
-| `e-7w<wed` / `e+1w>sun` | Then move to the previous (`<`) / next (`>`) weekday. |
-| `e-49d..e` | Range between Easter-relative dates (the end must not be before the start). |
+| `p`, `p+39`, `p-7d`, `p-7w` | Relative to Orthodox Pascha (days, or weeks with `w`). |
+| `p-7w<wed` / `p+1w>sun` | Then move to the previous (`<`) / next (`>`) weekday. |
+| `p-49d..p` | Range between Pascha-relative dates (the end must not be before the start). |
 
 ## File format
 
@@ -22,7 +22,7 @@ Dates are written **day first, then month, separated by a dot**:
 - "25.03":
     name: Annunciation
     rule: no_fish
-- "e+39": Ascension
+- "p+39": Ascension
 - "01.02..14.02":                    # range: weekday rules
     mon..fri: no_meat
     sat,sun: no_dairy

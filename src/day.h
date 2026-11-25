@@ -6,14 +6,14 @@ namespace bcal {
 
 // A day specification. Syntax:
 //   "DD.MM"                      fixed solar date, e.g. "25.12", "6.1"
-//   "e[+-]N[d|w][<|>weekday]"    relative to Orthodox Easter, e.g. "e", "e+39",
-//                                "e-7w", "e-7w<wed" (previous Wednesday)
+//   "p[+-]N[d|w][<|>weekday]"    relative to Orthodox Pascha, e.g. "p", "p+39",
+//                                "p-7w", "p-7w<wed" (previous Wednesday)
 struct Day {
-  enum class Kind { Solar, Easter };
+  enum class Kind { Solar, Pascha };
   Kind kind = Kind::Solar;
   int day = 0;    // Solar only
   int month = 0;  // Solar only
-  int offset_days = 0;                 // Easter only
+  int offset_days = 0;                 // Pascha only
   std::optional<int> prev_weekday;     // '<', 0 = mon .. 6 = sun
   std::optional<int> next_weekday;     // '>'
 };
