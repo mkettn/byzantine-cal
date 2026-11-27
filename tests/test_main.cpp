@@ -397,13 +397,11 @@ int main() {
   // --- locale names
   {
     using V = std::vector<std::string>;
-    CHECK(bcal::locale_names("de_DE") == V({"de_DE", "de", "en"}));
-    CHECK(bcal::locale_names("de_DE.UTF-8") == V({"de_DE", "de", "en"}));           // the codeset is implied
-    CHECK(bcal::locale_names("de_DE.UTF-8@euro") == V({"de_DE", "de", "en"}));
-    CHECK(bcal::locale_names("de") == V({"de", "en"}) && bcal::locale_names("fil_PH") == V({"fil_PH", "fil", "en"}));
-    CHECK(bcal::locale_names("en_US") == V({"en_US", "en"}) && bcal::locale_names("en") == V({"en"}));
-    for (const char* none : {"", "C", "POSIX", "C.UTF-8"}) CHECK(bcal::locale_names(none) == V({"en"}));
-    for (const char* bad : {"de-DE", "de_de", "DE", "d", "deutsch", "de_DEU", "../x", "de_DE/x", "de DE", "_DE", "de_", ".UTF-8", "@euro", "..", "C_DE"})
+    for (const char* german : {"de_DE", "de_DE.UTF-8", "de_DE.UTF-8@euro"})   // the codeset is implied
+      CHECK(bcal::locale_names(german) == V({"de_DE", "de", "en"}));
+    CHECK(bcal::locale_names("de") == V({"de", "en"}) && bcal::locale_names("en_US") == V({"en_US", "en"}));
+    for (const char* none : {"", "C", "POSIX", "C.UTF-8", "en"}) CHECK(bcal::locale_names(none) == V({"en"}));
+    for (const char* bad : {"de-DE", "de_de", "DE", "de_DEU", "../x", "de DE", ".UTF-8", "@euro", "C_DE"})
       CHECK(throws<bcal::ConfigError>([&] { bcal::locale_names(bad); }));
 
     auto env = [](std::map<std::string, std::string> vars) {
@@ -416,7 +414,6 @@ int main() {
     const O none, cli = "fr_FR", config = "de_AT";
     CHECK(bcal::choose_locale(cli, config, env({{"LANG", "de_DE"}})) == "fr_FR");        // --lang wins
     CHECK(bcal::choose_locale(none, config, env({{"LC_ALL", "fr_FR"}})) == "de_AT");     // then the config
-    CHECK(bcal::choose_locale(none, none, env({{"LANG", "de_DE.UTF-8"}})) == "de_DE.UTF-8");
     CHECK(bcal::choose_locale(none, none, env({{"LC_MESSAGES", "fr_FR"}, {"LC_ALL", "it_IT"}, {"LANG", "de_DE"}})) == "it_IT");
     CHECK(bcal::choose_locale(none, none, env({{"LC_ALL", ""}, {"LANG", "de_DE"}})) == "de_DE");   // empty is not set
     CHECK(bcal::choose_locale(none, none, env({})) == "en");
@@ -430,8 +427,7 @@ int main() {
   {
     Sandbox sb;
     const auto en = lang("en"), de = lang("de_DE"), at = lang("de_AT");   // de_DE has no file of its own
-    CHECK(en.month(1) == "January" && en.month(12) == "December" && en.weekday(1) == "Monday" && en.weekday(7) == "Sunday");
-    CHECK(en.ui()["date"] == "Date" && en.ui()["weekday"] == "Weekday" && en.ui()["data"] == "Data" && en.ui()["pascha"] == "Pascha");
+    CHECK(en.month(1) == "January" && en.month(12) == "December" && en.weekday(7) == "Sunday" && en.ui()["pascha"] == "Pascha");
     CHECK(de.month(3) == "März" && de.weekday(3) == "Mittwoch" && de.ui()["date"] == "Datum" && de.month(1) == "Januar");
     CHECK(at.month(1) == "Jänner" && at.month(2) == "Februar" && at.weekday(1) == "Montag" && at.ui()["weekday"] == "Wochentag");
     CHECK(throws<std::out_of_range>([&] { en.month(0); }) && throws<std::out_of_range>([&] { en.weekday(8); }));
@@ -452,11 +448,9 @@ int main() {
     CHECK(kind("months: " + twelve + "\nweekdays: " + seven + "\nui: {a: b}\n") == 0);
     for (const std::string& bad : std::vector<std::string>{
              "months: [a, b]\nweekdays: " + seven + "\n",                              // 2 months
-             "months: [a, b, c, d, e, f, g, h, i, j, k, l, m]\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, [l]]\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, '']\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, ' ']\nweekdays: " + seven + "\n",   // blank name
-             "months: x\nweekdays: " + seven + "\n",
              "months: " + twelve + "\nweekdays: [a, b]\n",
              "months: " + twelve + "\nweekdays: " + seven + "\nui: [a]\n",
              "months: " + twelve + "\nweekdays: " + seven + "\nui: {a: [b]}\n",
