@@ -80,7 +80,7 @@ cal.add_day(day("25.12"), "Nativity");
 cal.add_range(day("15.11"), day("24.12"), {0, 1, 2, 3, 4}, "no_meat");          // mon..fri
 cal.add_range(day("p"), day("p+6d"), bcal::all_weekdays(), "{name: Bright Week}");
 
-const bcal::CalendarDay& d = cal.at(1, 7);   // or cal.at(2026y / January / 7)
+const bcal::CalendarDay& d = cal.at(1, 7);   // 7 January (also takes a std::chrono::year_month_day)
 if (d.has_rule()) std::cout << *d.data;
 for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 ```
