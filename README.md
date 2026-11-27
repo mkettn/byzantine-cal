@@ -95,9 +95,10 @@ for (const bcal::CalendarDay& day : cal) { /* 365 or 366 days, in order */ }
 - The shift leaps over year boundaries: with 13, 25.12. of the previous year falls on
   7 January. Weekday filters use the weekday of the shifted date.
 - Pascha-relative dates refer to the Pascha of the calendar's year and are not shifted.
-- 29.02. only exists in leap years; in other years the rule has no effect.
+- 29.02. only exists in leap years; in other years the rule has no effect. A range with
+  29.02. as one of its bounds is ignored as a whole in such years.
 - Years 1..9999 are accepted. The 13-day difference between the calendars is exact from 1900 to 2099.
-- `offset_days` can be any value from -365 to 365.
+- `offset_days` is meant to be small (13 for the old calendar). It is not checked, and large offsets are not handled.
 
 `load_year_calendar()` (`src/calendar_loader.h`) builds the calendar of a year from a
 calendar file (a `YAML::Node`). The data of a day is then the YAML of its rule as a single

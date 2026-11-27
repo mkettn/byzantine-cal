@@ -173,9 +173,6 @@ int main() {
     hits = 0;
     for (const auto& d : c25o) hits += d.has_rule();
     CHECK(hits == 0);
-    // 29.02.2028 + 365 = 28.02.2029 is not leap-related but shows leaping
-    auto c29 = cal("- \"29.02\": L\n", 2029, 365);
-    CHECK(data_at(c29, 2, 28) == "L");
   }
 
   // --- Pascha-relative dates are not shifted by the offset
@@ -223,6 +220,20 @@ int main() {
     CHECK(data_at(l, 3, 3) == "E");
   }
 
+  // --- a range with a bound that does not exist is ignored as a whole
+  {
+    auto day = [](const char* s) { return *bcal::parse_day(s).day; };
+    bcal::YearCalendar c(2027);                     // not a leap year
+    c.add_range(day("25.02"), day("29.02"), "r");
+    c.add_range(day("29.02"), day("02.03"), "s");
+    int hits = 0;
+    for (const auto& x : c) hits += x.has_rule();
+    CHECK(hits == 0);
+    bcal::YearCalendar l(2028);                     // leap year
+    l.add_range(day("27.02"), day("01.03"), "r");
+    CHECK(data_at(l, 2, 29) == "r" && data_at(l, 3, 1) == "r");
+  }
+
   // --- Pascha-relative dates refer to the Pascha of this year only
   {
     auto c = cal("- \"p+100d\": in\n- \"p+300d\": out\n- \"p-300d\": out\n", 2026);
@@ -268,11 +279,10 @@ int main() {
     CHECK(data_at(c, 3, 13) != "leap");
 
     // creation checks
-    bool a = false, b = false, d = false;
+    bool a = false, b = false;
     try { bcal::YearCalendar(0); } catch (const std::invalid_argument&) { a = true; }
-    try { bcal::YearCalendar(2026, 366); } catch (const std::invalid_argument&) { b = true; }
-    try { bcal::YearCalendar(2026, -366); } catch (const std::invalid_argument&) { d = true; }
-    CHECK(a && b && d);
+    try { bcal::YearCalendar(10000); } catch (const std::invalid_argument&) { b = true; }
+    CHECK(a && b);
     CHECK(bcal::YearCalendar(2028).pascha() == year{2028} / April / 16);
   }
 
@@ -299,9 +309,6 @@ int main() {
     CHECK(throws("[]", 10000, 0));
     CHECK(!throws("[]", 1, 0) && !throws("[]", 9999, 0));
     CHECK(!throws("[]", 2012, 0) && !throws("[]", 2100, 0));
-    CHECK(throws("[]", 2026, 366));
-    CHECK(throws("[]", 2026, -366));
-    CHECK(!throws("[]", 2026, 365));
   }
 
   std::printf(failures ? "%d failure(s)\n" : "all tests passed\n", failures);

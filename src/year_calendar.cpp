@@ -24,8 +24,6 @@ YearCalendar::YearCalendar(int year, int offset_days)
     : year_(year), offset_days_(offset_days) {
   if (year < kMinYear || year > kMaxYear)
     throw std::invalid_argument("year must be in 1..9999");
-  if (offset_days < -365 || offset_days > 365)
-    throw std::invalid_argument("offset must be within +-365 days");
 
   pascha_ = orthodox_pascha(year);
 

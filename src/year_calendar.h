@@ -39,8 +39,9 @@ class YearCalendar {
  public:
   using const_iterator = std::vector<CalendarDay>::const_iterator;
 
-  // Throws std::invalid_argument if year is not in 1..9999 or offset_days not
-  // within +-365. Calculates the day of Pascha of the year.
+  // Throws std::invalid_argument if year is not in 1..9999. Calculates the day
+  // of Pascha of the year. The offset is meant to be small (13 days for the old
+  // calendar); it is not checked, and large offsets are not handled.
   explicit YearCalendar(int year, int offset_days = 0);
 
   int year() const { return year_; }
@@ -56,7 +57,9 @@ class YearCalendar {
 
   // Attaches data to the days of a range (both ends included) that fall on one
   // of the given weekdays (0 = mon .. 6 = sun; all weekdays if omitted). A
-  // range of fixed dates whose end is before its start crosses New Year.
+  // range of fixed dates whose end is before its start crosses New Year. A
+  // range with a bound that does not exist (29.02. in a non-leap year) is
+  // ignored as a whole.
   void add_range(const Day& start, const Day& end, const Weekdays& weekdays,
                  std::string data);
   void add_range(const Day& start, const Day& end, std::string data);
