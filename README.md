@@ -134,7 +134,8 @@ another one (see [Install](#install)).
 Each day has `date` (`YYYY-MM-DD`), `year`, `month`, `day`, `weekday` (1 = Monday .. 7 = Sunday),
 `weekday_name`, `has_rule` and `data` (the data of its rule, empty without one).
 
-Besides the inja built-ins the function `replace(text, from, to)` is available. Blocks
+Besides the inja built-ins the functions `replace(text, from, to)` and `escape_markdown(text)`
+(backslash-escapes everything that has a meaning in Markdown, newlines become `<br>`) are available. Blocks
 (`{% ... %}`) alone on a line leave no empty line behind, and line statements start with `%%`
 (inja's default `##` is a Markdown heading).
 

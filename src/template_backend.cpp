@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdio>
+#include <string_view>
 
 #include <inja/inja.hpp>
 
@@ -38,6 +39,22 @@ std::string iso_date(std::chrono::year_month_day d) {
 
 }  // namespace
 
+std::string escape_markdown(const std::string& text) {
+  std::string out;
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    const char c = text[i];
+    if (c == '\r' && i + 1 < text.size() && text[i + 1] == '\n') continue;
+    if (c == '\n' || c == '\r') {
+      out += "<br>";
+    } else {
+      if (std::string_view("\\`*_{}[]()<>#+-.!|~&").find(c) != std::string_view::npos)
+        out += '\\';
+      out += c;
+    }
+  }
+  return out;
+}
+
 nlohmann::json calendar_to_json(const YearCalendar& calendar) {
   nlohmann::json days = nlohmann::json::array();
   nlohmann::json months = nlohmann::json::array();
@@ -68,6 +85,9 @@ std::string render_template(const YearCalendar& calendar,
     env.set_line_statement("%%");  // inja's default "##" is a Markdown heading
     env.set_trim_blocks(true);
     env.set_lstrip_blocks(true);
+    env.add_callback("escape_markdown", 1, [](inja::Arguments& args) {
+      return escape_markdown(args.at(0)->get<std::string>());
+    });
     env.add_callback("replace", 3, [](inja::Arguments& args) {
       std::string text = args.at(0)->get<std::string>();
       const auto from = args.at(1)->get<std::string>();

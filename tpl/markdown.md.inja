@@ -10,7 +10,7 @@ Pascha: {{ pascha }}
 |------|---------|------|
 {% for day in month.days %}
 {% if day.has_rule %}
-| {{ day.date }} | {{ day.weekday_name }} | `{{ replace(day.data, "|", "\\|") }}` |
+| {{ day.date }} | {{ day.weekday_name }} | {{ escape_markdown(day.data) }} |
 {% endif %}
 {% endfor %}
 {% endif %}

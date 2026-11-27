@@ -226,6 +226,12 @@ int main() {
     CHECK(render("## {{ year }}") == "## 2026");                      // not an inja line statement
     CHECK(render("{% for d in days %}\n{% if d.has_rule %}\n{{ d.date }}={{ d.data }};\n"
                  "{% endif %}\n{% endfor %}\n") == "2026-01-07=Nativity;\n2026-04-12=a|b;\n2026-04-13=a|b;\n");
+    CHECK(bcal::escape_markdown("a|b `c` *d* _e_ [f](g) <h> #i +j -k l. m! ~n &o \\p") ==
+          "a\\|b \\`c\\` \\*d\\* \\_e\\_ \\[f\\]\\(g\\) \\<h\\> \\#i \\+j \\-k l\\. m\\! \\~n \\&o \\\\p");
+    CHECK(bcal::escape_markdown("plain text 123") == "plain text 123");
+    CHECK(bcal::escape_markdown("a\nb\r\nc") == "a<br>b<br>c" && bcal::escape_markdown("") == "");
+    CHECK(render("{{ escape_markdown(\"a|b_c\") }}") == "a\\|b\\_c");
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ escape_markdown(1) }}"); }));
     CHECK(render("{{ replace(\"a|b|c\", \"|\", \"\\\\|\") }}") == "a\\|b\\|c");
     CHECK(throws<bcal::TemplateError>([&] { render("{% if %}"); }));
     CHECK(throws<bcal::TemplateError>([&] { render("{{ no_such_value }}"); }));

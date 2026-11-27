@@ -20,8 +20,14 @@ class TemplateError : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
+// Escapes text for Markdown: every character that has a meaning there
+// (\ ` * _ { } [ ] ( ) < > # + - . ! | ~ &) gets a backslash, so the text is
+// shown literally, also in a table cell. Newlines become <br>.
+std::string escape_markdown(const std::string& text);
+
 // Renders an inja template with the data of calendar_to_json(). Besides the
-// inja built-ins, the function replace(text, from, to) is available. Blocks
+// inja built-ins, the functions replace(text, from, to) and
+// escape_markdown(text) are available. Blocks
 // ({% ... %}) that are alone on their line leave no empty line behind. Line
 // statements start with "%%" (not inja's default "##", a Markdown heading).
 // Throws TemplateError if the template is invalid or cannot be rendered.

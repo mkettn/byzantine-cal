@@ -86,6 +86,8 @@ if(BUILD_TESTING)
   bcal_expect_args(year_data "--year=2026|${MD}|${NATIVITY}" 0 "2026-11-16.+note: fast")
   set(TPL ${CMAKE_CURRENT_SOURCE_DIR}/tests/templates)
   bcal_expect_args(year_markdown "--year=2026|${MD}|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12.+## April.+2026-04-12 \\| Sunday")
+  bcal_expect_args(year_markdown_escaped "--year=2026|${MD}|${CMAKE_CURRENT_SOURCE_DIR}/tests/year/special.yml" 0
+                   "Theophany\\\\_Feast.+has \\\\`tick\\\\` \\\\\\| pipe")
   bcal_expect_args(template_file "--year=2026|--old|--template=${TPL}/list.txt.inja|${NATIVITY}" 0 "2026-01-07;3;{name: Nativity")
   bcal_expect_args(template_broken "--year=2026|--template=${TPL}/broken.inja|${NATIVITY}" 1 "template error")
   bcal_expect_args(template_unknown_value "--year=2026|--template=${TPL}/unknown.inja|${NATIVITY}" 1 "template error")
