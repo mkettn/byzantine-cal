@@ -105,33 +105,25 @@ followed). Unknown options, an option that is set twice and several YAML documen
 
 ## Languages
 
-Month and weekday names and the texts of the templates (table headings) come from language files,
-YAML files named after a locale in a `lang_dir` of the [configuration](#configuration). `lang/en.yaml`:
+Month and weekday names and the texts of the templates come from language files, YAML files named
+after a locale in a `lang_dir` of the [configuration](#configuration). `lang/en.yaml`:
 
 ```yaml
 months: [January, ..., December]     # 12 names
 weekdays: [Monday, ..., Sunday]      # 7 names, Monday first
-ui:                                  # texts for the templates, available as `ui.date` etc.
-  date: Date
-  weekday: Weekday
-  data: Data
-  pascha: Pascha
+ui: {date: Date, weekday: Weekday, data: Data, pascha: Pascha}   # texts for templates: `ui.date` etc.
 ```
 
-A language is a locale name as for `setlocale()` **without the codeset** (`.UTF-8` is implied,
-and ignored if given), e.g. `de_DE` or `de`. For `de_DE` the files `de_DE.yaml`, `de.yaml` and
-`en.yaml` are looked for, in this order, in the `lang_dir`s. Every key is optional in a file and
-is taken from the next file if it is missing, so `de_AT.yaml` only has to hold what differs from
-`de.yaml` (see `lang/`), and a language without a file of its own is English. `en.yaml` has to
-exist. The calendar file itself is not translated: names and other data are printed as written.
+A language is a locale name as for `setlocale()` **without the codeset** (`.UTF-8` is implied and
+ignored if given), e.g. `de_DE` or `de`. For `de_DE` the files `de_DE.yaml`, `de.yaml` and `en.yaml`
+are looked for, in this order. Every key is optional in a file and comes from the next file if it
+is missing, so `de_AT.yaml` only holds what differs from `de.yaml` (see `lang/`), and a language
+without a file is English. `en.yaml` has to exist. The Markdown template escapes the texts; the
+calendar file itself is not translated, its names and data are printed as written.
 
-The language is, in this order:
-
-1. `--lang=<locale>`,
-2. `language:` in the configuration,
-3. the environment: the first one set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C` and `POSIX`
-   mean no language, as does a value that is not a locale name),
-4. `en`.
+The language is, in this order: `--lang=<locale>`, `language:` in the configuration, the first one
+set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C`, `POSIX` and values that are no locale name mean
+English), `en`.
 
 ## Year calendar
 

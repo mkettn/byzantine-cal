@@ -53,7 +53,8 @@ Options:
                 de_DE or de (without codeset). Default: the language in the
                 configuration, else LC_ALL, LC_MESSAGES or LANG, else en.
                 Needs --year.
-  -C <file>     Configuration file (it names the template directories).
+  -C <file>     Configuration file (it names the template and language
+                directories).
                 Default: bcal.yaml in the current directory, otherwise the
                 installed config.yaml. Needs --year.
   -h --help     Show this help.
@@ -101,6 +102,7 @@ int main(int argc, char** argv) {
       args["--lang"] ? std::optional<std::string>(args["--lang"].asString()) : std::nullopt;
   if (lang_from_cli) {
     try {
+      if (lang_from_cli->empty()) throw bcal::ConfigError("--lang needs a locale name such as de_DE");
       bcal::locale_names(*lang_from_cli);
     } catch (const bcal::ConfigError& e) {
       std::fprintf(stderr, "%s\n", e.what());

@@ -8,15 +8,27 @@ namespace bcal {
 
 namespace fs = std::filesystem;
 
-namespace {
+YAML::Node load_yaml_file(const fs::path& file, const char* kind) {
+  std::vector<YAML::Node> documents;
+  try {
+    std::error_code ec;
+    if (!fs::is_regular_file(file, ec)) throw YAML::BadFile(file.string());
+    documents = YAML::LoadAllFromFile(file.string());
+  } catch (const YAML::BadFile&) {
+    throw ConfigFileError(std::string("cannot read ") + kind + " " + file.string());
+  } catch (const YAML::Exception& e) {
+    throw ConfigError(file.string() + ":" + std::to_string(e.mark.line + 1) +
+                      ": YAML syntax error: " + e.msg);
+  }
+  if (documents.size() > 1)
+    throw ConfigError(file.string() + ": the " + kind + " must be a single YAML document");
+  return documents.empty() ? YAML::Node() : documents[0];
+}
 
-// "file:line: " for messages.
-std::string where(const fs::path& file, const YAML::Node& node) {
+std::string location(const fs::path& file, const YAML::Node& node) {
   const auto line = node.IsDefined() && !node.Mark().is_null() ? node.Mark().line + 1 : 0;
   return file.string() + (line > 0 ? ":" + std::to_string(line) : "") + ": ";
 }
-
-}  // namespace
 
 fs::path ByzantineCalConfig::find_file(const std::optional<std::string>& path_from_cli,
                                        const std::string& installed_file) {
@@ -33,33 +45,19 @@ fs::path ByzantineCalConfig::find_file(const std::optional<std::string>& path_fr
 }
 
 ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
-  std::vector<YAML::Node> documents;
-  try {
-    std::error_code ec;
-    if (!fs::is_regular_file(file, ec)) throw YAML::BadFile(file.string());
-    documents = YAML::LoadAllFromFile(file.string());
-  } catch (const YAML::BadFile&) {
-    throw ConfigFileError("cannot read configuration file " + file.string());
-  } catch (const YAML::Exception& e) {
-    throw ConfigError(file.string() + ":" + std::to_string(e.mark.line + 1) +
-                      ": YAML syntax error: " + e.msg);
-  }
-
-  if (documents.size() > 1)
-    throw ConfigError(file.string() + ": the configuration must be a single YAML document");
-  if (documents.empty() || documents[0].IsNull()) return;  // an empty file: no options
-  const YAML::Node& root = documents[0];
+  const YAML::Node root = load_yaml_file(file, "configuration file");
+  if (root.IsNull()) return;  // an empty file: no options
   if (!root.IsMap())
-    throw ConfigError(where(file, root) + "the configuration must be a map of options");
+    throw ConfigError(location(file, root) + "the configuration must be a map of options");
 
   // A list of directories, absolute or relative to the directory of the file.
   auto dirs_of = [&](const YAML::Node& list, const char* option) {
     if (!list.IsSequence())
-      throw ConfigError(where(file, list) + option + " must be a list of directories");
+      throw ConfigError(location(file, list) + option + " must be a list of directories");
     std::vector<fs::path> dirs;
     for (const auto& item : list) {
       if (!item.IsScalar() || item.Scalar().empty())
-        throw ConfigError(where(file, item) + "the entries of " + option + " must be directory names");
+        throw ConfigError(location(file, item) + "the entries of " + option + " must be directory names");
       const fs::path dir = item.Scalar();
       dirs.push_back(dir.is_absolute() ? dir : (file.parent_path() / dir).lexically_normal());
     }
@@ -70,10 +68,10 @@ ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
   for (const auto& option : root) {
     const std::string name = option.first.IsScalar() ? option.first.Scalar() : "";
     if (name != "template_dir" && name != "lang_dir" && name != "language")
-      throw ConfigError(where(file, option.first) + "unknown option" +
+      throw ConfigError(location(file, option.first) + "unknown option" +
                         (option.first.IsScalar() ? " \"" + name + "\"" : ""));
     for (const auto& earlier : seen)
-      if (earlier == name) throw ConfigError(where(file, option.first) + name + " is set twice");
+      if (earlier == name) throw ConfigError(location(file, option.first) + name + " is set twice");
     seen.push_back(name);
 
     if (name == "template_dir") {
@@ -82,11 +80,11 @@ ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
       lang_dirs_ = dirs_of(option.second, "lang_dir");
     } else {
       if (!option.second.IsScalar() || option.second.Scalar().empty())
-        throw ConfigError(where(file, option.second) + "language must be a locale name like de_DE");
+        throw ConfigError(location(file, option.second) + "language must be a locale name like de_DE");
       try {
         locale_names(option.second.Scalar());
       } catch (const ConfigError& e) {
-        throw ConfigError(where(file, option.second) + e.what());
+        throw ConfigError(location(file, option.second) + e.what());
       }
       language_ = option.second.Scalar();
     }

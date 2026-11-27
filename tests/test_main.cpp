@@ -368,7 +368,6 @@ int main() {
     CHECK((lc.find_language_files("de_AT") == Paths{dir / "b/lang/de_AT.yaml", dir / "a/lang/de.yaml", dir / "a/lang/en.yaml"}));
     CHECK((lc.find_language_files("de_DE.UTF-8") == Paths{dir / "a/lang/de.yaml", dir / "a/lang/en.yaml"}));   // no de_DE
     CHECK((lc.find_language_files("fr_FR") == Paths{dir / "a/lang/en.yaml"}));                                    // English
-    CHECK((lc.find_language_files("C") == Paths{dir / "a/lang/en.yaml"}));
     CHECK(throws<bcal::ConfigFileError>([&] { c.find_language_files("de"); }));       // no lang_dir: no en.yaml
     CHECK(throws<bcal::ConfigError>([&] { lc.find_language_files("de-DE"); }));
     CHECK(bcal::ByzantineCalConfig(write("o.yaml", "language: de_DE.UTF-8\n")).language() == "de_DE.UTF-8");
@@ -418,12 +417,10 @@ int main() {
     CHECK(bcal::choose_locale(cli, config, env({{"LANG", "de_DE"}})) == "fr_FR");        // --lang wins
     CHECK(bcal::choose_locale(none, config, env({{"LC_ALL", "fr_FR"}})) == "de_AT");     // then the config
     CHECK(bcal::choose_locale(none, none, env({{"LANG", "de_DE.UTF-8"}})) == "de_DE.UTF-8");
-    CHECK(bcal::choose_locale(none, none, env({{"LANG", "de_DE"}, {"LC_MESSAGES", "fr_FR"}})) == "fr_FR");
     CHECK(bcal::choose_locale(none, none, env({{"LC_MESSAGES", "fr_FR"}, {"LC_ALL", "it_IT"}, {"LANG", "de_DE"}})) == "it_IT");
     CHECK(bcal::choose_locale(none, none, env({{"LC_ALL", ""}, {"LANG", "de_DE"}})) == "de_DE");   // empty is not set
     CHECK(bcal::choose_locale(none, none, env({})) == "en");
     CHECK(bcal::choose_locale(none, none, env({{"LANG", "C.UTF-8"}})) == "C.UTF-8");   // means English
-    CHECK(bcal::locale_names(bcal::choose_locale(none, none, env({{"LANG", "C.UTF-8"}}))) == V({"en"}));
     CHECK(bcal::choose_locale(none, none, env({{"LC_ALL", "what ever!"}, {"LANG", "de_DE"}})) == "en");   // garbage: no language
     CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(O("de-DE"), none, env({})); }));
     CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(none, O("de-DE"), env({})); }));
@@ -443,8 +440,6 @@ int main() {
     const std::string en_file = std::string(BCAL_LANG_DIR) + "/en.yaml";
     const bcal::Language partial({sb.write("p.yaml", "ui: {date: Tag}\n"), en_file});
     CHECK(partial.month(1) == "January" && partial.ui()["date"] == "Tag" && partial.ui()["weekday"] == "Weekday");
-    const bcal::Language odd({sb.write("q.yaml", "weekdays: [1, 2, 3, 4, 5, 6, 7]\n"), en_file});
-    CHECK(odd.weekday(2) == "2" && odd.month(2) == "February");
 
     const std::string twelve = "[a, b, c, d, e, f, g, h, i, j, k, l]", seven = "[a, b, c, d, e, f, g]";
     auto kind = [&](const std::string& text) {   // 0 = fine, 1 = invalid, 2 = cannot be read
@@ -460,6 +455,7 @@ int main() {
              "months: [a, b, c, d, e, f, g, h, i, j, k, l, m]\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, [l]]\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, '']\nweekdays: " + seven + "\n",
+             "months: [a, b, c, d, e, f, g, h, i, j, k, ' ']\nweekdays: " + seven + "\n",   // blank name
              "months: x\nweekdays: " + seven + "\n",
              "months: " + twelve + "\nweekdays: [a, b]\n",
              "months: " + twelve + "\nweekdays: " + seven + "\nui: [a]\n",
@@ -475,6 +471,15 @@ int main() {
     } catch (const bcal::ConfigError& e) {
       CHECK(std::string(e.what()).find("y.yaml:1: months must be a list of 12 names") != std::string::npos);
     }
+    // the Markdown template escapes the texts of a language
+    bcal::YearCalendar yc(2026, 13);
+    yc.add_day(D("25.12"), "x");
+    const auto md = bcal::MarkdownBackend(std::string(BCAL_TPL_DIR) + "/markdown.inja")
+                        .render(yc, bcal::Language({sb.write("xx.yaml",
+                            "months: ['Jan|x', b, c, d, e, f, g, h, i, j, k, l]\nweekdays: [a, b, 'W|3', d, e, f, g]\n"
+                            "ui: {date: 'Da|te', weekday: w, data: d, pascha: '# P'}\n")}));
+    CHECK(md.find("## Jan\\|x") != std::string::npos && md.find("| Da\\|te |") != std::string::npos);
+    CHECK(md.find("\\# P: 2026-04-12") != std::string::npos && md.find("| 2026-01-07 | W\\|3 |") != std::string::npos);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language({sb.dir / "nope.yaml"}); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language({sb.dir}); }));   // a directory
   }

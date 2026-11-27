@@ -5,6 +5,10 @@
 #include <string>
 #include <vector>
 
+namespace YAML {
+class Node;
+}
+
 namespace bcal {
 
 // The configuration file is invalid.
@@ -16,6 +20,14 @@ class ConfigError : public std::runtime_error {
 class ConfigFileError : public ConfigError {
   using ConfigError::ConfigError;
 };
+
+// Helpers to read the YAML files of the program (configuration, language files):
+// the single YAML document of `file` (a null node for an empty file); `kind`
+// names the file in messages. Throws ConfigFileError if it cannot be read and
+// ConfigError for a syntax error or several documents.
+YAML::Node load_yaml_file(const std::filesystem::path& file, const char* kind);
+// "file:line: " of a node, for messages.
+std::string location(const std::filesystem::path& file, const YAML::Node& node);
 
 // The configuration of byzantine-cal, read from a YAML file:
 //

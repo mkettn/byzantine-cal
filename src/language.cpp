@@ -26,13 +26,10 @@ std::vector<std::string> locale_names(const std::string& locale) {
 std::string choose_locale(const std::optional<std::string>& from_cli,
                           const std::optional<std::string>& from_config,
                           const std::function<const char*(const char*)>& get_env) {
-  if (from_cli) {
-    locale_names(*from_cli);  // validates
-    return *from_cli;
-  }
-  if (from_config) {
-    locale_names(*from_config);
-    return *from_config;
+  for (const auto* given : {&from_cli, &from_config}) {
+    if (!*given) continue;
+    locale_names(**given);  // validates
+    return **given;
   }
   for (const char* variable : {"LC_ALL", "LC_MESSAGES", "LANG"}) {
     const char* value = get_env(variable);
@@ -49,22 +46,16 @@ std::string choose_locale(const std::optional<std::string>& from_cli,
 
 namespace {
 
-std::string where(const std::filesystem::path& file, const YAML::Node& node) {
-  const auto line = node.IsDefined() && !node.Mark().is_null() ? node.Mark().line + 1 : 0;
-  return file.string() + (line > 0 ? ":" + std::to_string(line) : "") + ": ";
-}
-
-// A list of exactly `count` non-empty names.
-template <std::size_t N>
-std::array<std::string, N> names_of(const std::filesystem::path& file, const YAML::Node& list,
-                                    const char* what) {
-  if (!list.IsSequence() || list.size() != N)
-    throw ConfigError(where(file, list) + what + " must be a list of " + std::to_string(N) + " names");
-  std::array<std::string, N> names;
-  for (std::size_t i = 0; i < N; ++i) {
-    if (!list[i].IsScalar() || list[i].Scalar().empty())
-      throw ConfigError(where(file, list[i]) + "the entries of " + what + " must be names");
-    names[i] = list[i].Scalar();
+// A list of exactly `count` names.
+std::vector<std::string> names_of(const std::filesystem::path& file, const YAML::Node& list,
+                                  const char* what, std::size_t count) {
+  if (!list.IsSequence() || list.size() != count)
+    throw ConfigError(location(file, list) + what + " must be a list of " + std::to_string(count) + " names");
+  std::vector<std::string> names;
+  for (const auto& item : list) {
+    if (!item.IsScalar() || item.Scalar().find_first_not_of(" \t\r\n") == std::string::npos)
+      throw ConfigError(location(file, item) + "the entries of " + what + " must be names");
+    names.push_back(item.Scalar());
   }
   return names;
 }
@@ -72,49 +63,32 @@ std::array<std::string, N> names_of(const std::filesystem::path& file, const YAM
 }  // namespace
 
 Language::Language(const std::vector<std::filesystem::path>& files) {
-  bool have_months = false, have_weekdays = false;
   // From the least specific file to the most specific one, so that the latter win.
   for (auto file = files.rbegin(); file != files.rend(); ++file) {
-    std::vector<YAML::Node> documents;
-    try {
-      std::error_code ec;
-      if (!std::filesystem::is_regular_file(*file, ec)) throw YAML::BadFile(file->string());
-      documents = YAML::LoadAllFromFile(file->string());
-    } catch (const YAML::BadFile&) {
-      throw ConfigFileError("cannot read language file " + file->string());
-    } catch (const YAML::Exception& e) {
-      throw ConfigError(file->string() + ":" + std::to_string(e.mark.line + 1) +
-                        ": YAML syntax error: " + e.msg);
-    }
-    if (documents.size() > 1)
-      throw ConfigError(file->string() + ": a language file must be a single YAML document");
-    if (documents.empty() || documents[0].IsNull()) continue;
-    const YAML::Node& root = documents[0];
-    if (!root.IsMap()) throw ConfigError(where(*file, root) + "a language file must be a map");
+    const YAML::Node root = load_yaml_file(*file, "language file");
+    if (root.IsNull()) continue;
+    if (!root.IsMap()) throw ConfigError(location(*file, root) + "a language file must be a map");
 
     for (const auto& entry : root) {
       const std::string key = entry.first.IsScalar() ? entry.first.Scalar() : "";
       if (key == "months") {
-        months_ = names_of<12>(*file, entry.second, "months");
-        have_months = true;
+        months_ = names_of(*file, entry.second, "months", 12);
       } else if (key == "weekdays") {
-        weekdays_ = names_of<7>(*file, entry.second, "weekdays");
-        have_weekdays = true;
+        weekdays_ = names_of(*file, entry.second, "weekdays", 7);
       } else if (key == "ui") {
-        if (!entry.second.IsMap()) throw ConfigError(where(*file, entry.second) + "ui must be a map");
+        if (!entry.second.IsMap()) throw ConfigError(location(*file, entry.second) + "ui must be a map");
         for (const auto& text : entry.second) {
           if (!text.first.IsScalar() || !text.second.IsScalar())
-            throw ConfigError(where(*file, text.first) + "the entries of ui must be texts");
+            throw ConfigError(location(*file, text.first) + "the entries of ui must be texts");
           ui_[text.first.Scalar()] = text.second.Scalar();
         }
       } else {
-        throw ConfigError(where(*file, entry.first) + "unknown key \"" + key +
-                          "\" (use months, weekdays, ui)");
+        throw ConfigError(location(*file, entry.first) + "unknown key \"" + key + "\" (use months, weekdays, ui)");
       }
     }
   }
-  if (!have_months || !have_weekdays)
-    throw ConfigError(std::string("the language files have no ") + (have_months ? "weekdays" : "months"));
+  if (months_.empty() || weekdays_.empty())
+    throw ConfigError(std::string("the language files have no ") + (months_.empty() ? "months" : "weekdays"));
 }
 
 }  // namespace bcal
