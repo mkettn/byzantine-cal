@@ -4,6 +4,7 @@
 #include "day.h"
 #include "pascha.h"
 #include "validator.h"
+#include "calendar_loader.h"
 #include "year_calendar.h"
 
 static int failures = 0;
@@ -27,7 +28,7 @@ static std::string data_at(const bcal::YearCalendar& c, unsigned m, unsigned d) 
   return c.at(m, d).data.value_or("-");
 }
 static bcal::YearCalendar cal(const std::string& yaml, int y, int off = 0) {
-  return bcal::YearCalendar(YAML::Load(yaml), y, off);
+  return bcal::load_year_calendar(YAML::Load(yaml), y, off);
 }
 
 int main() {
@@ -222,15 +223,57 @@ int main() {
     CHECK(data_at(l, 3, 3) == "E");
   }
 
-  // --- Pascha-relative dates with offsets of more than a year
+  // --- Pascha-relative dates refer to the Pascha of this year only
   {
-    auto c = cal("- \"p+800d\": far\n- \"p-500d\": neg\n- \"p+120w\": w\n", 2026);
-    CHECK(data_at(c, 7, 14) == "far");    // Pascha 2024 (5.5.) + 800 days
-    CHECK(data_at(c, 12, 3) == "neg");    // Pascha 2028 (16.4.) - 500 days
-    CHECK(data_at(c, 8, 23) == "w");      // Pascha 2024 + 840 days
+    auto c = cal("- \"p+100d\": in\n- \"p+300d\": out\n- \"p-300d\": out\n", 2026);
+    CHECK(data_at(c, 7, 21) == "in");      // Pascha 2026 (12.4.) + 100 days
     int hits = 0;
     for (const auto& d : c) hits += d.has_rule();
-    CHECK(hits == 3);
+    CHECK(hits == 1);                      // the others fall outside this year
+  }
+
+  // --- the API without YAML
+  {
+    bcal::YearCalendar c(2026, 13);
+    CHECK(c.year() == 2026 && c.offset_days() == 13);
+    CHECK(c.pascha() == year{2026} / April / 12);           // not shifted
+    auto day = [](const char* s) { return *bcal::parse_day(s).day; };
+
+    c.add_day(day("25.12"), "nativity");
+    CHECK(data_at(c, 1, 7) == "nativity" && data_at(c, 12, 25) == "-");
+
+    c.add_day(day("p"), "pascha");
+    CHECK(data_at(c, 4, 12) == "pascha");
+
+    // range with weekday filter (14.-20.3. after the shift: a Saturday is 14.3.)
+    c.add_range(day("01.03"), day("07.03"), {5, 6}, "weekend");   // sat, sun
+    CHECK(data_at(c, 3, 14) == "weekend" && data_at(c, 3, 15) == "weekend");
+    CHECK(data_at(c, 3, 16) == "-" && data_at(c, 3, 13) == "-");
+
+    // no filter: every day; later calls win
+    c.add_range(day("01.03"), day("03.03"), "all");               // 14.-16.3.
+    CHECK(data_at(c, 3, 14) == "all" && data_at(c, 3, 16) == "all");
+    c.add_range(day("02.03"), day("02.03"), {}, "none");          // empty filter
+    CHECK(data_at(c, 3, 15) == "all");
+    c.add_day(day("02.03"), "later");
+    CHECK(data_at(c, 3, 15) == "later");
+
+    // Pascha-relative range; arbitrary data is kept verbatim
+    c.add_range(day("p"), day("p+2d"), "line1: a\nline2: \"b\"");
+    CHECK(data_at(c, 4, 14) == "line1: a\nline2: \"b\"");
+    CHECK(data_at(c, 4, 15) == "-");
+
+    // 29.02. in a non-leap year is ignored
+    c.add_day(day("29.02"), "leap");
+    CHECK(data_at(c, 3, 13) != "leap");
+
+    // creation checks
+    bool a = false, b = false, d = false;
+    try { bcal::YearCalendar(0); } catch (const std::invalid_argument&) { a = true; }
+    try { bcal::YearCalendar(2026, 366); } catch (const std::invalid_argument&) { b = true; }
+    try { bcal::YearCalendar(2026, -366); } catch (const std::invalid_argument&) { d = true; }
+    CHECK(a && b && d);
+    CHECK(bcal::YearCalendar(2028).pascha() == year{2028} / April / 16);
   }
 
   // --- at() rejects out-of-range arguments instead of truncating them

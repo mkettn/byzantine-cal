@@ -5,16 +5,15 @@
 #include <string>
 #include <vector>
 
-#include <yaml-cpp/yaml.h>
+#include "day.h"
 
 namespace bcal {
 
-// One day of a generated calendar.
+// One day of a calendar.
 struct CalendarDay {
   std::chrono::year_month_day date;
-  // Arbitrary data attached by the rule that applies to this day, as a
-  // single-line YAML string (e.g. "no_meat" or "{name: Nativity, rule: no_fish}").
-  // Empty if no rule applies.
+  // Arbitrary data attached by the rule that applies to this day. Empty if no
+  // rule applies.
   std::optional<std::string> data;
 
   bool has_rule() const { return data.has_value(); }
@@ -23,34 +22,44 @@ struct CalendarDay {
   }
 };
 
-// The calendar of one year (1 January .. 31 December), generated from a
-// calendar document.
+// The calendar of one year (1 January .. 31 December).
+//
+// It is created for a year and a fixed offset, and then filled with rules
+// using add_day() and add_range(). Each rule carries a string of arbitrary
+// data. Where several rules apply to the same day, the one added last wins.
 //
 // All dates outside of this class are Gregorian: the dates passed to at(), the
-// dates of the CalendarDay values and the dates iterated over. Only the fixed
-// dates written in the calendar document are shifted by `offset_days`, so what
-// at(12, 25) returns depends on the offset: with 0 it is the rule written for
-// 25.12., with 13 it is the rule written for 12.12.
-//
-// Rules are applied in document order; where several rules apply to the same
-// day, the later one wins.
-//
-// `offset_days` is added to every fixed (DD.MM) date, so that e.g. an offset
-// of 13 moves 25.12 to 7 January. Dates are shifted across year boundaries:
-// 25.12. of the previous year lands on 7 January of the requested year.
-// Pascha-relative dates are not shifted. Offset must be within +-365 days.
+// dates of the CalendarDay values and the dates iterated over. The fixed dates
+// (DD.MM) of the rules that are added are shifted by `offset_days`, so what
+// at(12, 25) returns depends on the offset: with 0 it is the rule added for
+// 25.12., with 13 it is the rule added for 12.12. Dates are shifted across year
+// boundaries: 25.12. of the previous year + 13 days is 7 January. Pascha
+// relative dates refer to the Pascha of this year and are not shifted.
 class YearCalendar {
  public:
   using const_iterator = std::vector<CalendarDay>::const_iterator;
 
-  // `root` must be a valid calendar document (see validate()); throws
-  // std::invalid_argument if it is not, or if year (1..9999) / offset
-  // are out of range.
-  YearCalendar(const YAML::Node& root, int year, int offset_days = 0);
+  // Throws std::invalid_argument if year is not in 1..9999 or offset_days not
+  // within +-365. Calculates the day of Pascha of the year.
+  explicit YearCalendar(int year, int offset_days = 0);
 
   int year() const { return year_; }
   int offset_days() const { return offset_days_; }
   std::size_t size() const { return days_.size(); }  // 365 or 366
+
+  // Pascha of this year (Gregorian date, not shifted by the offset).
+  std::chrono::year_month_day pascha() const { return pascha_; }
+
+  // Attaches data to a single day. A fixed date that does not exist (29.02. in
+  // a non-leap year) or that does not fall into this year is ignored.
+  void add_day(const Day& day, std::string data);
+
+  // Attaches data to the days of a range (both ends included) that fall on one
+  // of the given weekdays (0 = mon .. 6 = sun; all weekdays if omitted). A
+  // range of fixed dates whose end is before its start crosses New Year.
+  void add_range(const Day& start, const Day& end, const Weekdays& weekdays,
+                 std::string data);
+  void add_range(const Day& start, const Day& end, std::string data);
 
   // Query a day. Throws std::out_of_range if it is not in this year.
   const CalendarDay& at(std::chrono::year_month_day date) const;
@@ -61,8 +70,16 @@ class YearCalendar {
   const_iterator end() const { return days_.end(); }
 
  private:
+  // Date of `d` for fixed dates taken in `solar_year`; nullopt if it does not
+  // exist (29.02. in a non-leap year).
+  std::optional<std::chrono::sys_days> resolve(const Day& d,
+                                               int solar_year) const;
+  void apply(std::chrono::sys_days first, std::chrono::sys_days last,
+             const Weekdays& weekdays, const std::string& data);
+
   int year_;
   int offset_days_;
+  std::chrono::year_month_day pascha_;
   std::vector<CalendarDay> days_;
 };
 

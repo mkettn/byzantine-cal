@@ -14,7 +14,7 @@ find_package(spdlog REQUIRED)
 find_package(docopt REQUIRED)
 
 add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp
-            src/year_calendar.cpp)
+            src/year_calendar.cpp src/calendar_loader.cpp)
 target_include_directories(bcal PUBLIC src)
 target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog)
 target_compile_options(bcal PRIVATE -Wall -Wextra -Wpedantic)

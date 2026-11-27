@@ -1,13 +1,9 @@
 #include "year_calendar.h"
 
 #include <algorithm>
-#include <cstdlib>
-#include <sstream>
 #include <stdexcept>
 
-#include "day.h"
 #include "pascha.h"
-#include "validator.h"
 
 namespace bcal {
 
@@ -20,28 +16,35 @@ int weekday_index(sys_days d) {
   return static_cast<int>((weekday{d}.c_encoding() + 6) % 7);
 }
 
-std::string to_yaml_line(const YAML::Node& n) {
-  YAML::Emitter out;
-  out.SetMapFormat(YAML::Flow);
-  out.SetSeqFormat(YAML::Flow);
-  out << n;
-  return out.c_str();
+bool is_solar(const Day& d) { return d.kind == Day::Kind::Solar; }
+
+}  // namespace
+
+YearCalendar::YearCalendar(int year, int offset_days)
+    : year_(year), offset_days_(offset_days) {
+  if (year < kMinYear || year > kMaxYear)
+    throw std::invalid_argument("year must be in 1..9999");
+  if (offset_days < -365 || offset_days > 365)
+    throw std::invalid_argument("offset must be within +-365 days");
+
+  pascha_ = orthodox_pascha(year);
+
+  const sys_days first{std::chrono::year{year} / January / 1};
+  const sys_days last{std::chrono::year{year} / December / 31};
+  for (sys_days d = first; d <= last; d += days{1})
+    days_.push_back({year_month_day{d}, std::nullopt});
 }
 
-// Resolves a Day for the given base year. Fixed dates are shifted by
-// `offset`; Pascha-relative ones are not. Returns nullopt for dates that do
-// not exist in that year (29.02. in a non-leap year).
-std::optional<sys_days> resolve(const Day& d, int base_year, int offset,
-                                int year_for_fixed) {
-  if (d.kind == Day::Kind::Solar) {
-    year_month_day ymd{std::chrono::year{year_for_fixed},
+std::optional<sys_days> YearCalendar::resolve(const Day& d,
+                                              int solar_year) const {
+  if (is_solar(d)) {
+    year_month_day ymd{std::chrono::year{solar_year},
                        std::chrono::month(static_cast<unsigned>(d.month)),
                        std::chrono::day(static_cast<unsigned>(d.day))};
     if (!ymd.ok()) return std::nullopt;
-    return sys_days{ymd} + days{offset};
+    return sys_days{ymd} + days{offset_days_};
   }
-  if (base_year < kMinYear || base_year > kMaxYear) return std::nullopt;
-  sys_days r = sys_days{orthodox_pascha(base_year)} + days{d.offset_days};
+  sys_days r = sys_days{pascha_} + days{d.offset_days};
   if (d.next_weekday) {
     while (weekday_index(r) != *d.next_weekday) r += days{1};
   } else if (d.prev_weekday) {
@@ -50,97 +53,50 @@ std::optional<sys_days> resolve(const Day& d, int base_year, int offset,
   return r;
 }
 
-}  // namespace
+void YearCalendar::apply(sys_days from, sys_days to, const Weekdays& weekdays,
+                         const std::string& data) {
+  const sys_days first{std::chrono::year{year_} / January / 1};
+  const sys_days last{std::chrono::year{year_} / December / 31};
+  // Only the part inside this year matters.
+  for (sys_days d = std::max(from, first); d <= std::min(to, last);
+       d += days{1})
+    if (weekdays.count(weekday_index(d)))
+      days_[static_cast<std::size_t>((d - first).count())].data = data;
+}
 
-YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
-    : year_(year), offset_days_(offset_days) {
-  if (year < kMinYear || year > kMaxYear)
-    throw std::invalid_argument("year must be in 1..9999");
-  if (offset_days < -365 || offset_days > 365)
-    throw std::invalid_argument("offset must be within +-365 days");
-
-  auto report = validate(root);
-  if (!report.ok()) {
-    const auto& e = report.errors.front();
-    throw std::invalid_argument(
-        (e.line > 0 ? "line " + std::to_string(e.line) + ": " : "") + e.message);
+void YearCalendar::add_day(const Day& day, std::string data) {
+  if (!is_solar(day)) {
+    if (auto d = resolve(day, year_)) apply(*d, *d, all_weekdays(), data);
+    return;
   }
+  // A fixed date of the previous or the next year can be shifted into this
+  // year by the offset.
+  for (int y = year_ - 1; y <= year_ + 1; ++y)
+    if (auto d = resolve(day, y)) apply(*d, *d, all_weekdays(), data);
+}
 
-  // All days of the year.
-  const sys_days first{std::chrono::year{year} / January / 1};
-  const sys_days last{std::chrono::year{year} / December / 31};
-  for (sys_days d = first; d <= last; d += days{1})
-    days_.push_back({year_month_day{d}, std::nullopt});
-
-  auto apply = [&](sys_days d, const std::string& data) {
-    if (d < first || d > last) return;
-    days_[static_cast<std::size_t>((d - first).count())].data = data;
-  };
-
-  // Entries are applied in order, so later ones win. Dates are resolved for
-  // the previous, the requested and the next year: shifted fixed dates (and
-  // long Pascha-relative ones) of a neighbouring year can land in this year.
-  for (const auto& item : root) {
-    for (const auto& kv : item) {
-      const std::string key = kv.first.Scalar();
-      const auto pos = key.find("..");
-
-      // Fixed dates (offset <= 365 days) need the neighbouring years only.
-      // Pascha-relative dates with a long offset can come from years further
-      // away, so widen the range by the size of their offset.
-      int span = 1;
-      for (const auto& part :
-           pos == std::string::npos
-               ? std::vector<std::string>{key}
-               : std::vector<std::string>{key.substr(0, pos), key.substr(pos + 2)}) {
-        auto d = *parse_day(part).day;
-        if (d.kind == Day::Kind::Pascha)
-          span = std::max(span, std::abs(d.offset_days) / 365 + 2);
-      }
-
-      // Range entries: weekday key -> data; later keys win.
-      std::vector<std::pair<std::set<int>, std::string>> rules;
-      if (pos != std::string::npos)
-        for (const auto& wk : kv.second) {
-          std::string err;
-          rules.emplace_back(parse_weekday_key(wk.first.Scalar(), err),
-                             to_yaml_line(wk.second));
-        }
-      const std::string entry_data =
-          pos == std::string::npos ? to_yaml_line(kv.second) : std::string();
-
-      for (int base = year - span; base <= year + span; ++base) {
-        if (pos == std::string::npos) {
-          auto day = parse_day(key).day;
-          auto date = resolve(*day, base, offset_days, base);
-          if (date) apply(*date, entry_data);
-          continue;
-        }
-
-        auto start = *parse_day(key.substr(0, pos)).day;
-        auto end = *parse_day(key.substr(pos + 2)).day;
-        // A fixed range whose end is "before" its start crosses New Year.
-        int end_year = base;
-        if (start.kind == Day::Kind::Solar && end.kind == Day::Kind::Solar &&
-            (end.month < start.month ||
-             (end.month == start.month && end.day < start.day)))
-          end_year = base + 1;
-
-        auto s = resolve(start, base, offset_days, base);
-        auto e = resolve(end, base, offset_days, end_year);
-        if (!s || !e) continue;
-
-        // Only the part of the range inside this year matters.
-        for (sys_days d = std::max(*s, first); d <= std::min(*e, last);
-             d += days{1}) {
-          const std::string* hit = nullptr;
-          for (const auto& [wds, value] : rules)
-            if (wds.count(weekday_index(d))) hit = &value;
-          if (hit) apply(d, *hit);
-        }
-      }
-    }
+void YearCalendar::add_range(const Day& start, const Day& end,
+                             const Weekdays& weekdays, std::string data) {
+  if (!is_solar(start) || !is_solar(end)) {
+    // Pascha relative (or mixed): relative to this year.
+    auto s = resolve(start, year_);
+    auto e = resolve(end, year_);
+    if (s && e) apply(*s, *e, weekdays, data);
+    return;
   }
+  // A range of fixed dates whose end is before its start crosses New Year.
+  const bool crosses =
+      end.month < start.month || (end.month == start.month && end.day < start.day);
+  for (int y = year_ - 1; y <= year_ + 1; ++y) {
+    auto s = resolve(start, y);
+    auto e = resolve(end, crosses ? y + 1 : y);
+    if (s && e) apply(*s, *e, weekdays, data);
+  }
+}
+
+void YearCalendar::add_range(const Day& start, const Day& end,
+                             std::string data) {
+  add_range(start, end, all_weekdays(), std::move(data));
 }
 
 const CalendarDay& YearCalendar::at(year_month_day date) const {

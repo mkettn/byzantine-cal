@@ -128,8 +128,8 @@ DayResult parse_day(const std::string& text) {
 // Weekday key grammar: either one range "mon..fri" (wrapping allowed, e.g.
 // "sat..mon") or a comma list of single days "wed,fri" / "sat". Lowercase only.
 // Returns the weekdays (0 = mon .. 6 = sun) it covers; sets err on failure.
-std::set<int> parse_weekday_key(const std::string& key, std::string& err) {
-  std::set<int> days;
+Weekdays parse_weekday_key(const std::string& key, std::string& err) {
+  Weekdays days;
   auto one = [&](const std::string& name) -> int {
     if (name.empty()) return -1;
     auto lc = name;

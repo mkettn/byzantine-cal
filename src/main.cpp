@@ -13,7 +13,7 @@
 
 #include "pascha.h"
 #include "validator.h"
-#include "year_calendar.h"
+#include "calendar_loader.h"
 
 static bool parse_int(const std::string& text, int& out) {
   auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), out);
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
   spdlog::info("{}: OK ({} entries)", path, report.entries);
 
   if (generate) {
-    bcal::YearCalendar calendar(root, year, offset_days);
+    auto calendar = bcal::load_year_calendar(root, year, offset_days);
     int with_rule = 0;
     for (const auto& day : calendar) {
       if (!day.has_rule()) continue;
