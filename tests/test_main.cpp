@@ -280,9 +280,22 @@ int main() {
     const bcal::ByzantineCalConfig c(file);
     CHECK(c.file() == file);
     CHECK((c.template_dirs() == std::vector<fs::path>{dir / "a" / "tpl", dir / "b", "/abs/dir"}));
-    CHECK(c.find_template("one.inja") == dir / "a" / "tpl" / "one.inja");   // the first dir wins
+    CHECK(c.find_template("one.inja") == dir / "a" / "tpl" / "one.inja");   // the file, not the directory
     CHECK(c.find_template("two.inja") == dir / "b" / "two.inja");
-    CHECK(!c.find_template("none.inja") && !c.find_template("dirname"));      // a directory is no template
+    CHECK(throws<bcal::ConfigFileError>([&] { c.find_template("none.inja"); }));
+    CHECK(throws<bcal::ConfigFileError>([&] { c.find_template("dirname"); }));   // a directory is no template
+    // the path can be given to a backend as it is
+    write("a/tpl/markdown.inja", "year {{ year }}");
+    CHECK(bcal::MarkdownBackend(c.find_template(bcal::MarkdownBackend::kTemplateFile))
+              .render(bcal::YearCalendar(2026)) == "year 2026");
+    try {
+      c.find_template("none.inja");
+    } catch (const bcal::ConfigFileError& e) {
+      const std::string what = e.what();
+      CHECK(what.find("cannot find the template none.inja in the template_dir of ") == 0);
+      CHECK(what.find((dir / "b").string()) != std::string::npos);        // the directories it looked in
+    }
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig(write("empty.yaml", "")).find_template("x"); }));
     CHECK(bcal::ByzantineCalConfig(write("empty.yaml", "")).template_dirs().empty());
     CHECK(bcal::ByzantineCalConfig(write("none.yaml", "template_dir: []\n")).template_dirs().empty());
 

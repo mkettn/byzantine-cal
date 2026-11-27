@@ -46,8 +46,10 @@ class ByzantineCalConfig {
     return template_dirs_;
   }
 
-  // The first template directory that has a file `name`.
-  std::optional<std::filesystem::path> find_template(const std::string& name) const;
+  // The path of the template file `name` in the first template directory that
+  // has it, ready to be given to a template backend. Throws ConfigFileError if
+  // no directory has it.
+  std::filesystem::path find_template(const std::string& name) const;
 
  private:
   std::filesystem::path file_;

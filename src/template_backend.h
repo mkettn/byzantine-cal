@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <stdexcept>
 #include <string>
 
@@ -43,7 +44,7 @@ std::string render_template(const YearCalendar& calendar,
 // render() throws TemplateError (see render_template()).
 class TemplateBackend {
  public:
-  explicit TemplateBackend(const std::string& template_path);
+  explicit TemplateBackend(const std::filesystem::path& template_path);
 
   std::string render(const YearCalendar& calendar) const {
     return render_template(calendar, template_);
@@ -58,7 +59,7 @@ class MarkdownBackend : public TemplateBackend {
  public:
   static constexpr const char* kTemplateFile = "markdown.inja";
 
-  explicit MarkdownBackend(const std::string& template_path)
+  explicit MarkdownBackend(const std::filesystem::path& template_path)
       : TemplateBackend(template_path) {}
 };
 

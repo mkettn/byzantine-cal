@@ -94,10 +94,10 @@ std::string render_template(const YearCalendar& calendar,
   }
 }
 
-TemplateBackend::TemplateBackend(const std::string& template_path) {
+TemplateBackend::TemplateBackend(const std::filesystem::path& template_path) {
   std::ifstream in(template_path);
   if (!in || !std::filesystem::is_regular_file(template_path))
-    throw TemplateFileError("cannot read template " + template_path);
+    throw TemplateFileError("cannot read template " + template_path.string());
   std::stringstream ss;
   ss << in.rdbuf();
   template_ = ss.str();

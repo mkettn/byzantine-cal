@@ -140,7 +140,8 @@ ICS, ...) is another template with its own backend class. `MarkdownBackend`'s te
 [Install](#install)); the program finds it in the `template_dir` of the [configuration](#configuration).
 
 ```cpp
-bcal::MarkdownBackend backend("/usr/local/lib/byzantine-cal/tpl/markdown.inja");
+bcal::ByzantineCalConfig config(bcal::ByzantineCalConfig::find_file(std::nullopt, installed_config));
+bcal::MarkdownBackend backend(config.find_template(bcal::MarkdownBackend::kTemplateFile));
 std::string text = backend.render(calendar);   // TemplateFileError / TemplateError on failure
 ```
 

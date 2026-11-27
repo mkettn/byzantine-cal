@@ -60,10 +60,13 @@ ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
   }
 }
 
-std::optional<fs::path> ByzantineCalConfig::find_template(const std::string& name) const {
+fs::path ByzantineCalConfig::find_template(const std::string& name) const {
   for (const auto& dir : template_dirs_)
     if (fs::is_regular_file(dir / name)) return dir / name;
-  return std::nullopt;
+  std::string dirs;
+  for (const auto& dir : template_dirs_) dirs += (dirs.empty() ? "" : ", ") + dir.string();
+  throw ConfigFileError("cannot find the template " + name + " in the template_dir of " +
+                        file_.string() + (dirs.empty() ? " (it lists no directory)" : " (" + dirs + ")"));
 }
 
 }  // namespace bcal

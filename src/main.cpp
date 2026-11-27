@@ -125,13 +125,7 @@ int main(int argc, char** argv) {
         args["-C"] ? std::optional<std::string>(args["-C"].asString()) : std::nullopt,
         BCAL_CONFIG_FILE));
     spdlog::debug("configuration {}", config.file().string());
-    const auto tpl = config.find_template(bcal::MarkdownBackend::kTemplateFile);
-    if (!tpl) {
-      spdlog::error("cannot find the template {} in the template_dir of {}",
-                    bcal::MarkdownBackend::kTemplateFile, config.file().string());
-      return 2;
-    }
-    text = bcal::MarkdownBackend(tpl->string())
+    text = bcal::MarkdownBackend(config.find_template(bcal::MarkdownBackend::kTemplateFile))
                .render(bcal::load_year_calendar(root, year, offset_days));
   } catch (const bcal::ConfigFileError& e) {
     spdlog::error("{}", e.what());
