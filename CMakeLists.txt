@@ -47,7 +47,7 @@ if(BUILD_TESTING)
   target_compile_definitions(bcal-tests PRIVATE
                              BCAL_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tpl"
                              BCAL_TEST_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/templates"
-                             BCAL_LANG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/lang")
+                             BCAL_TEST_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/tests/config/bcal.yaml")
   add_test(NAME unit COMMAND bcal-tests)
   set(RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_expect.cmake)
   # Arguments separated by "|"; exit code and a regex on the output are checked.
@@ -117,7 +117,10 @@ if(BUILD_TESTING)
   bcal_expect_env(lang_environment_order "LANG=de_DE.UTF-8,LC_ALL=en_US.UTF-8" "${OLD}|${NATIVITY}" 0 "## January.+Wednesday")
   bcal_expect_env(lang_option_beats_environment "LANG=de_DE.UTF-8" "${OLD}|--lang=en|${NATIVITY}" 0 "## January.+Wednesday")
   bcal_expect_env(lang_c_locale_is_english "LANG=de_DE.UTF-8,LC_ALL=C" "${OLD}|${NATIVITY}" 0 "## January.+Wednesday")
-  bcal_expect_args(lang_files_missing "--year=2026|--old|-C|${CFG}/no-lang.yaml|${NATIVITY}" 2 "cannot find the language file en.yaml")
+  bcal_expect_args(lang_files_missing "--year=2026|--old|-C|${CFG}/no-lang.yaml|${NATIVITY}" 2 "cannot find a language file for en")
+  # en.yaml falls back to de_XX which falls back to en: read only once, with a warning
+  bcal_expect_args(lang_circular_fallback "--year=2026|--old|-C|${CFG}/circular.yaml|--lang=en|${NATIVITY}" 0
+                   "## January.+already read")
   bcal_expect_args(lang_file_invalid "--year=2026|--old|-C|${CFG}/bad-lang.yaml|${NATIVITY}" 1 "en.yaml:1: months must be a list of 12 names")
   # Without -C and bcal.yaml the program uses the installed config.yaml.
   add_test(NAME default_config

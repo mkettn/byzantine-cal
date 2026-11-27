@@ -100,25 +100,16 @@ fs::path ByzantineCalConfig::find_template(const std::string& name) const {
                         file_.string() + (dirs.empty() ? " (it lists no directory)" : " (" + dirs + ")"));
 }
 
-std::vector<fs::path> ByzantineCalConfig::find_language_files(const std::string& locale) const {
-  std::vector<fs::path> files;
+fs::path ByzantineCalConfig::find_language_file(const std::string& locale) const {
+  std::string looked, dirs;
   for (const auto& name : locale_names(locale)) {
-    bool found = false;
-    for (const auto& dir : lang_dirs_) {
-      if (fs::is_regular_file(dir / (name + ".yaml"))) {
-        files.push_back(dir / (name + ".yaml"));
-        found = true;
-        break;
-      }
-    }
-    if (!found && name == "en") {  // the fallback of all languages must be there
-      std::string dirs;
-      for (const auto& dir : lang_dirs_) dirs += (dirs.empty() ? "" : ", ") + dir.string();
-      throw ConfigFileError("cannot find the language file en.yaml in the lang_dir of " +
-                            file_.string() + (dirs.empty() ? " (it lists no directory)" : " (" + dirs + ")"));
-    }
+    looked += (looked.empty() ? "" : ", ") + name + ".yaml";
+    for (const auto& dir : lang_dirs_)
+      if (fs::is_regular_file(dir / (name + ".yaml"))) return dir / (name + ".yaml");
   }
-  return files;
+  for (const auto& dir : lang_dirs_) dirs += (dirs.empty() ? "" : ", ") + dir.string();
+  throw ConfigFileError("cannot find a language file for " + locale + " (" + looked + ") in the lang_dir of " +
+                        file_.string() + (dirs.empty() ? ": it lists no directory" : " (" + dirs + ")"));
 }
 
 }  // namespace bcal

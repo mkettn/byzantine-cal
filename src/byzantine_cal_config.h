@@ -66,11 +66,10 @@ class ByzantineCalConfig {
   // The language to use if the configuration sets one (a valid locale name).
   const std::optional<std::string>& language() const { return language_; }
 
-  // The language files for `locale` (see locale_names()), most specific first:
-  // for each name the first lang_dir that has <name>.yaml; names without a file
-  // are left out, except "en", which must exist. Throws ConfigFileError if it
-  // does not and ConfigError for an invalid locale.
-  std::vector<std::filesystem::path> find_language_files(const std::string& locale) const;
+  // The language file for `locale`: for the names of locale_names() in order
+  // ("de_DE", "de"), the first lang_dir that has <name>.yaml. Throws
+  // ConfigFileError if there is none and ConfigError for an invalid locale.
+  std::filesystem::path find_language_file(const std::string& locale) const;
 
   // The path of the template file `name` in the first template directory that
   // has it, ready to be given to a template backend. Throws ConfigFileError if

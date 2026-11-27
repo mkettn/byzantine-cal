@@ -2,6 +2,7 @@
 
 #include <regex>
 
+#include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
 
 namespace bcal {
@@ -19,7 +20,6 @@ std::vector<std::string> locale_names(const std::string& locale) {
   std::vector<std::string> names;
   if (m[2].matched) names.push_back(name);
   names.push_back(m[1]);
-  if (names.back() != "en") names.push_back("en");
   return names;
 }
 
@@ -62,33 +62,58 @@ std::vector<std::string> names_of(const std::filesystem::path& file, const YAML:
 
 }  // namespace
 
-Language::Language(const std::vector<std::filesystem::path>& files) {
-  // From the least specific file to the most specific one, so that the latter win.
-  for (auto file = files.rbegin(); file != files.rend(); ++file) {
-    const YAML::Node root = load_yaml_file(*file, "language file");
-    if (root.IsNull()) continue;
-    if (!root.IsMap()) throw ConfigError(location(*file, root) + "a language file must be a map");
+Language::Language(const std::filesystem::path& file, const LanguageFileFinder& find) {
+  std::set<std::filesystem::path> read;
+  load(file, find, read);
+  if (months_.empty() || weekdays_.empty())
+    throw ConfigError(file.string() + ": no " + (months_.empty() ? "months" : "weekdays") +
+                      " in the language file or its fallbacks");
+}
 
-    for (const auto& entry : root) {
-      const std::string key = entry.first.IsScalar() ? entry.first.Scalar() : "";
-      if (key == "months") {
-        months_ = names_of(*file, entry.second, "months", 12);
-      } else if (key == "weekdays") {
-        weekdays_ = names_of(*file, entry.second, "weekdays", 7);
-      } else if (key == "ui") {
-        if (!entry.second.IsMap()) throw ConfigError(location(*file, entry.second) + "ui must be a map");
-        for (const auto& text : entry.second) {
-          if (!text.first.IsScalar() || !text.second.IsScalar())
-            throw ConfigError(location(*file, text.first) + "the entries of ui must be texts");
-          ui_[text.first.Scalar()] = text.second.Scalar();
-        }
-      } else {
-        throw ConfigError(location(*file, entry.first) + "unknown key \"" + key + "\" (use months, weekdays, ui)");
+void Language::load(const std::filesystem::path& file, const LanguageFileFinder& find,
+                    std::set<std::filesystem::path>& read) {
+  std::error_code ec;
+  if (!read.insert(std::filesystem::weakly_canonical(file, ec)).second) {
+    spdlog::warn("language file {} was already read and is not read again (circular fallback?)", file.string());
+    return;
+  }
+  const YAML::Node root = load_yaml_file(file, "language file");
+  if (root.IsNull()) return;
+  if (!root.IsMap()) throw ConfigError(location(file, root) + "a language file must be a map");
+
+  // The fallback first, so that the keys of this file replace its keys.
+  if (const YAML::Node fallback = root["fallback"]; fallback.IsDefined()) {
+    if (!fallback.IsScalar()) throw ConfigError(location(file, fallback) + "fallback must be a locale name");
+    std::filesystem::path next;
+    try {
+      locale_names(fallback.Scalar());  // validates
+      next = find(fallback.Scalar());
+    } catch (const ConfigFileError& e) {
+      throw ConfigFileError(file.string() + ": fallback: " + e.what());
+    } catch (const ConfigError& e) {
+      throw ConfigError(location(file, fallback) + e.what());
+    }
+    load(next, find, read);
+  }
+
+  for (const auto& entry : root) {
+    const std::string key = entry.first.IsScalar() ? entry.first.Scalar() : "";
+    if (key == "months") {
+      months_ = names_of(file, entry.second, "months", 12);
+    } else if (key == "weekdays") {
+      weekdays_ = names_of(file, entry.second, "weekdays", 7);
+    } else if (key == "ui") {
+      if (!entry.second.IsMap()) throw ConfigError(location(file, entry.second) + "ui must be a map");
+      for (const auto& text : entry.second) {
+        if (!text.first.IsScalar() || !text.second.IsScalar())
+          throw ConfigError(location(file, text.first) + "the entries of ui must be texts");
+        ui_[text.first.Scalar()] = text.second.Scalar();
       }
+    } else if (key != "fallback") {
+      throw ConfigError(location(file, entry.first) + "unknown key \"" + key +
+                        "\" (use fallback, months, weekdays, ui)");
     }
   }
-  if (months_.empty() || weekdays_.empty())
-    throw ConfigError(std::string("the language files have no ") + (months_.empty() ? "months" : "weekdays"));
 }
 
 }  // namespace bcal

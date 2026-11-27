@@ -1,5 +1,5 @@
-# English; the fallback of every other language. A language file may leave out
-# any key: it is taken from the next less specific file (de_AT, de, en).
+# English. A language file may leave out any key and name a fallback language,
+# a locale name that is read first; the keys of the file replace its keys.
 months: [January, February, March, April, May, June, July, August, September, October, November, December]
 weekdays: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
 ui:                  # texts of the templates

@@ -148,7 +148,14 @@ int main(int argc, char** argv) {
     const auto template_path = config.find_template(bcal::MarkdownBackend::kTemplateFile);
     const auto locale = bcal::choose_locale(lang_from_cli, config.language());
     spdlog::debug("language {}", locale);
-    const bcal::Language language(config.find_language_files(locale));
+    const auto find = [&](const std::string& l) { return config.find_language_file(l); };
+    std::filesystem::path language_file;
+    try {
+      language_file = find(locale);
+    } catch (const bcal::ConfigFileError&) {
+      language_file = find("en");  // no file for that language: English
+    }
+    const bcal::Language language(language_file, find);
     text = bcal::MarkdownBackend(template_path)
                .render(bcal::load_year_calendar(root, year, offset_days), language);
   } catch (const bcal::ConfigFileError& e) {

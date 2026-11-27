@@ -115,11 +115,21 @@ ui: {date: Date, weekday: Weekday, data: Data, pascha: Pascha}   # texts for tem
 ```
 
 A language is a locale name as for `setlocale()` **without the codeset** (`.UTF-8` is implied and
-ignored if given), e.g. `de_DE` or `de`. For `de_DE` the files `de_DE.yaml`, `de.yaml` and `en.yaml`
-are looked for, in this order. Every key is optional in a file and comes from the next file if it
-is missing, so `de_AT.yaml` only holds what differs from `de.yaml` (see `lang/`), and a language
-without a file is English. `en.yaml` has to exist. The Markdown template escapes the texts; the
-calendar file itself is not translated, its names and data are printed as written.
+ignored if given), e.g. `de_DE` or `de`. The file of a language is the first of `de_DE.yaml` and
+`de.yaml` that exists; if there is none, it is `en.yaml`. Every key is optional in a file, and a file
+can name a **fallback** language:
+
+```yaml
+fallback: de_DE      # de_CH.yaml: everything else is as in de_DE
+ui: {date: Datum}
+```
+
+The fallback is read first and the keys of the file replace its keys (`ui` entry by entry), then
+the fallback of the fallback, and so on: `lang/de_AT.yaml` (`fallback: de`) only holds the months,
+`de.yaml` has `fallback: en`. A file is read only once: if a fallback refers back to a file that
+has been read already (a circular reference), that is logged as a warning and ignored. The months
+and weekdays have to be there at the end. The Markdown template escapes the texts; the calendar
+file itself is not translated, its names and data are printed as written.
 
 The language is, in this order: `--lang=<locale>`, `language:` in the configuration, the first one
 set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C`, `POSIX` and values that are no locale name mean
