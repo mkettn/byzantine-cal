@@ -130,41 +130,33 @@ DayResult parse_day(const std::string& text) {
 // Returns the weekdays (0 = mon .. 6 = sun) it covers; sets err on failure.
 Weekdays parse_weekday_key(const std::string& key, std::string& err) {
   Weekdays days;
-  auto one = [&](const std::string& name) -> int {
-    if (name.empty()) return -1;
-    auto lc = name;
-    std::transform(lc.begin(), lc.end(), lc.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (lc != name) return -1;  // must be lowercase
-    return parse_weekday(name).value_or(-1);
+  auto one = [](const std::string& n) {  // lowercase names only
+    return n == lower(n) ? parse_weekday(n) : std::nullopt;
   };
-  if (key.empty()) {
-    err = "empty weekday key";
-    return days;
-  }
-  auto pos = key.find("..");
+  const auto pos = key.find("..");
   if (pos != std::string::npos) {
-    int a = one(key.substr(0, pos)), b = one(key.substr(pos + 2));
-    if (a < 0 || b < 0 || key.find(',') != std::string::npos) {
+    auto a = one(key.substr(0, pos)), b = one(key.substr(pos + 2));
+    if (!a || !b || key.find(',') != std::string::npos) {
       err = "invalid weekday range \"" + key +
             "\" (write e.g. mon..fri, lowercase, no spaces or commas)";
-      return days;
+      return {};
     }
-    for (int d = a;; d = (d + 1) % 7) {
+    for (int d = *a;; d = (d + 1) % 7) {  // may wrap, e.g. sat..mon
       days.insert(d);
-      if (d == b) break;
+      if (d == *b) break;
     }
     return days;
   }
   for (const auto& item : split(key, ',')) {
-    int d = one(trim(item));
-    if (d < 0) {
+    auto d = one(trim(item));
+    if (!d) {
       err = "unknown weekday \"" + trim(item) + "\" in \"" + key +
             "\" (use lowercase mon tue wed thu fri sat sun)";
       return {};
     }
-    days.insert(d);
+    days.insert(*d);
   }
+  if (days.empty()) err = "empty weekday key";
   return days;
 }
 

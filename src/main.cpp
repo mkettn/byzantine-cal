@@ -5,7 +5,6 @@
 
 #include <charconv>
 #include <cstdio>
-#include <iostream>
 #include <map>
 #include <string>
 
@@ -71,23 +70,16 @@ int main(int argc, char** argv) {
     spdlog::set_level(spdlog::level::err);
 
   int year = 0;
-  int offset_days = 0;
   const bool generate = static_cast<bool>(args["--year"]);
-  if (!generate && args["--old"].asBool()) {
-    std::fprintf(stderr, "--old needs --year\n\n%s", USAGE);
+  if (generate ? !parse_int(args["--year"].asString(), year) ||
+                     year < bcal::kMinYear || year > bcal::kMaxYear
+               : args["--old"].asBool()) {
+    std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
+                                  : "--old needs --year\n");
     return 3;
   }
-  if (args["--old"].asBool()) offset_days = bcal::kJulianGregorianOffsetDays;
-  if (generate) {
-    if (!parse_int(args["--year"].asString(), year)) {
-      std::fprintf(stderr, "year must be a whole number\n");
-      return 3;
-    }
-    if (year < bcal::kMinYear || year > bcal::kMaxYear) {
-      std::fprintf(stderr, "year must be 1..9999\n");
-      return 3;
-    }
-  }
+  const int offset_days =
+      args["--old"].asBool() ? bcal::kJulianGregorianOffsetDays : 0;
 
   const auto path = args["<yaml_file>"].asString();
   spdlog::debug("reading {}", path);
@@ -115,17 +107,11 @@ int main(int argc, char** argv) {
   spdlog::info("{}: OK ({} entries)", path, report.entries);
 
   if (generate) {
-    auto calendar = bcal::load_year_calendar(root, year, offset_days);
-    int with_rule = 0;
-    for (const auto& day : calendar) {
-      if (!day.has_rule()) continue;
-      ++with_rule;
-      std::printf("%04d-%02u-%02u\t%s\n", static_cast<int>(day.date.year()),
-                  static_cast<unsigned>(day.date.month()),
-                  static_cast<unsigned>(day.date.day()), day.data->c_str());
-    }
-    spdlog::debug("{}: {} of {} days have a rule", year, with_rule,
-                  calendar.size());
+    for (const auto& day : bcal::load_year_calendar(root, year, offset_days))
+      if (day.has_rule())
+        std::printf("%04d-%02u-%02u\t%s\n", static_cast<int>(day.date.year()),
+                    static_cast<unsigned>(day.date.month()),
+                    static_cast<unsigned>(day.date.day()), day.data->c_str());
   }
   return 0;
 }

@@ -68,41 +68,36 @@ ctest --test-dir build
 
 ## Year calendar
 
-`YearCalendar` (`src/year_calendar.h`) is the calendar of one year, from 1 January to
-31 December. It is created for a year and a fixed offset; the constructor calculates the
-day of Pascha. It is then filled with rules, each carrying a string of arbitrary data:
+`YearCalendar` (`src/year_calendar.h`) is the calendar of one year, 1 January to 31 December.
+It is created for a year and a fixed offset (the constructor calculates the day of Pascha) and
+filled with rules, each carrying a string of arbitrary data:
 
 ```cpp
 bcal::YearCalendar cal(2026, /*offset_days=*/13);   // cal.pascha() is 12 April 2026
 
 auto day = [](const char* s) { return *bcal::parse_day(s).day; };
 cal.add_day(day("25.12"), "Nativity");
-cal.add_day(day("p+39"), "{name: Ascension}");
-cal.add_range(day("15.11"), day("24.12"), {0, 1, 2, 3, 4}, "no_meat");   // mon..fri
-cal.add_range(day("p"), day("p+6d"), "no_fast");                           // all weekdays
+cal.add_range(day("15.11"), day("24.12"), {0, 1, 2, 3, 4}, "no_meat");          // mon..fri
+cal.add_range(day("p"), day("p+6d"), bcal::all_weekdays(), "{name: Bright Week}");
 
 const bcal::CalendarDay& d = cal.at(1, 7);   // or cal.at(2026y / January / 7)
 if (d.has_rule()) std::cout << *d.data;
-
-for (const bcal::CalendarDay& day : cal) { /* 365 or 366 days, in order */ }
+for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 ```
 
-- Where several rules apply to a day, the one added last wins.
-- All dates outside the class are Gregorian: the dates passed to `at()`, the dates of the
-  returned days and the dates printed by the command line. Only the fixed dates (`DD.MM`) of
-  the added rules are shifted by `offset_days`, so `at(12, 25)` returns different data
-  depending on the offset: the rule added for 25.12. with 0, the rule added for 12.12. with 13.
-- The shift leaps over year boundaries: with 13, 25.12. of the previous year falls on
-  7 January. Weekday filters use the weekday of the shifted date.
+- The rule added last wins for a day.
+- All dates outside the class are Gregorian (`at()`, the returned days, the command line output).
+  Only the fixed `DD.MM` dates of added rules are shifted by `offset_days`, also across year
+  boundaries: with 13, the rule added for 25.12. is found on 7 January of the following year,
+  and `at(12, 25)` returns the rule added for 12.12. Weekday filters use the shifted date.
 - Pascha-relative dates refer to the Pascha of the calendar's year and are not shifted.
-- 29.02. only exists in leap years; in other years the rule has no effect. A range with
-  29.02. as one of its bounds is ignored as a whole in such years.
-- Years 1..9999 are accepted. The 13-day difference between the calendars is exact from 1900 to 2099.
-- `offset_days` is meant to be small (13 for the old calendar). It is not checked, and large offsets are not handled.
+- 29.02. only exists in leap years; in other years the rule has no effect, and a range with
+  29.02. as a bound is ignored as a whole.
+- Years 1..9999 are accepted. The 13-day difference between the calendars is exact from 1900
+  to 2099. The offset is meant to be small (13) and is not checked.
 
-`load_year_calendar()` (`src/calendar_loader.h`) builds the calendar of a year from a
-calendar file (a `YAML::Node`). The data of a day is then the YAML of its rule as a single
-line, e.g. `no_meat` or `{name: Nativity, rule: no_fish}`.
+`load_year_calendar()` (`src/calendar_loader.h`) builds the calendar from a calendar file
+(a `YAML::Node`); the data of a day is the YAML of its rule as a single line.
 
 ## Usage
 

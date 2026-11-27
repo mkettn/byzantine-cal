@@ -63,14 +63,7 @@ void YearCalendar::apply(sys_days from, sys_days to, const Weekdays& weekdays,
 }
 
 void YearCalendar::add_day(const Day& day, std::string data) {
-  if (!is_solar(day)) {
-    if (auto d = resolve(day, year_)) apply(*d, *d, all_weekdays(), data);
-    return;
-  }
-  // A fixed date of the previous or the next year can be shifted into this
-  // year by the offset.
-  for (int y = year_ - 1; y <= year_ + 1; ++y)
-    if (auto d = resolve(day, y)) apply(*d, *d, all_weekdays(), data);
+  add_range(day, day, all_weekdays(), std::move(data));
 }
 
 void YearCalendar::add_range(const Day& start, const Day& end,
@@ -83,6 +76,7 @@ void YearCalendar::add_range(const Day& start, const Day& end,
     return;
   }
   // A range of fixed dates whose end is before its start crosses New Year.
+  // Dates of the previous or the next year can be shifted into this year.
   const bool crosses =
       end.month < start.month || (end.month == start.month && end.day < start.day);
   for (int y = year_ - 1; y <= year_ + 1; ++y) {
@@ -90,11 +84,6 @@ void YearCalendar::add_range(const Day& start, const Day& end,
     auto e = resolve(end, crosses ? y + 1 : y);
     if (s && e) apply(*s, *e, weekdays, data);
   }
-}
-
-void YearCalendar::add_range(const Day& start, const Day& end,
-                             std::string data) {
-  add_range(start, end, all_weekdays(), std::move(data));
 }
 
 const CalendarDay& YearCalendar::at(year_month_day date) const {

@@ -30,18 +30,14 @@ if(BUILD_TESTING)
   target_link_libraries(bcal-tests PRIVATE bcal)
   add_test(NAME unit COMMAND bcal-tests)
   set(RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_expect.cmake)
-  function(bcal_expect name file code regex)
-    add_test(NAME ${name}
-             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
-                     -DARGS=${CMAKE_CURRENT_SOURCE_DIR}/tests/${file}
-                     -DCODE=${code} "-DREGEX=${regex}" -P ${RUNNER})
-  endfunction()
-
-  # Several command line arguments, separated by "|".
+  # Arguments separated by "|"; exit code and a regex on the output are checked.
   function(bcal_expect_args name args code regex)
     add_test(NAME ${name}
              COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
                      "-DARGS=${args}" -DCODE=${code} "-DREGEX=${regex}" -P ${RUNNER})
+  endfunction()
+  function(bcal_expect name file code regex)
+    bcal_expect_args(${name} ${CMAKE_CURRENT_SOURCE_DIR}/tests/${file} ${code} "${regex}")
   endfunction()
 
   file(GLOB valid_files CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/valid/*.yml)
