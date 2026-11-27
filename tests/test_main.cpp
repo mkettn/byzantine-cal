@@ -221,9 +221,10 @@ int main() {
     auto c = cal("- \"p+800d\": far\n- \"p-500d\": neg\n- \"p+120w\": w\n", 2026);
     CHECK(data_at(c, 7, 14) == "far");    // Pascha 2024 (5.5.) + 800 days
     CHECK(data_at(c, 12, 3) == "neg");    // Pascha 2028 (16.4.) - 500 days
+    CHECK(data_at(c, 8, 23) == "w");      // Pascha 2024 + 840 days
     int hits = 0;
     for (const auto& d : c) hits += d.has_rule();
-    CHECK(hits >= 2);
+    CHECK(hits == 3);
   }
 
   // --- at() rejects out-of-range arguments instead of truncating them

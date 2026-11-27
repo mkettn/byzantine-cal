@@ -72,10 +72,9 @@ YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
   for (sys_days d = first; d <= last; d += days{1})
     days_.push_back({year_month_day{d}, std::nullopt});
 
-  auto apply = [&](sys_days d, const YAML::Node& value) {
+  auto apply = [&](sys_days d, const std::string& data) {
     if (d < first || d > last) return;
-    days_[static_cast<std::size_t>((d - first).count())].data =
-        to_yaml_line(value);
+    days_[static_cast<std::size_t>((d - first).count())].data = data;
   };
 
   // Entries are applied in order, so later ones win. Dates are resolved for
@@ -99,11 +98,22 @@ YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
           span = std::max(span, std::abs(d.offset_days) / 365 + 2);
       }
 
+      // Range entries: weekday key -> data; later keys win.
+      std::vector<std::pair<std::set<int>, std::string>> rules;
+      if (pos != std::string::npos)
+        for (const auto& wk : kv.second) {
+          std::string err;
+          rules.emplace_back(parse_weekday_key(wk.first.Scalar(), err),
+                             to_yaml_line(wk.second));
+        }
+      const std::string entry_data =
+          pos == std::string::npos ? to_yaml_line(kv.second) : std::string();
+
       for (int base = year - span; base <= year + span; ++base) {
         if (pos == std::string::npos) {
           auto day = parse_day(key).day;
           auto date = resolve(*day, base, offset_days, base);
-          if (date) apply(*date, kv.second);
+          if (date) apply(*date, entry_data);
           continue;
         }
 
@@ -120,16 +130,10 @@ YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
         auto e = resolve(end, base, offset_days, end_year);
         if (!s || !e) continue;
 
-        // Weekday key -> data; later keys win.
-        std::vector<std::pair<std::set<int>, YAML::Node>> rules;
-        for (const auto& wk : kv.second) {
-          std::string err;
-          rules.emplace_back(parse_weekday_key(wk.first.Scalar(), err),
-                             wk.second);
-        }
-        for (sys_days d = *s; d <= *e; d += days{1}) {
-          if (d < first || d > last) continue;
-          const YAML::Node* hit = nullptr;
+        // Only the part of the range inside this year matters.
+        for (sys_days d = std::max(*s, first); d <= std::min(*e, last);
+             d += days{1}) {
+          const std::string* hit = nullptr;
           for (const auto& [wds, value] : rules)
             if (wds.count(weekday_index(d))) hit = &value;
           if (hit) apply(d, *hit);
