@@ -69,7 +69,12 @@ int main() {
   CHECK(is_pascha(2025, 4, 20));
   CHECK(is_pascha(2026, 4, 12));
   CHECK(is_pascha(2027, 5, 2));
-  CHECK(is_pascha(2100, 5, 2));  // Julian/Gregorian gap grows to 14 days
+  {
+    bool lo = false, hi = false;
+    try { bcal::orthodox_pascha(1899); } catch (const std::out_of_range&) { lo = true; }
+    try { bcal::orthodox_pascha(2100); } catch (const std::out_of_range&) { hi = true; }
+    CHECK(lo && hi);
+  }
 
   // --- YearCalendar: size, iteration, queries
   {
@@ -130,6 +135,14 @@ int main() {
     // offset also moves the fixed date across month ends
     auto cf = cal("- \"28.02\": X\n", 2026, 1);
     CHECK(data_at(cf, 3, 1) == "X");
+  }
+
+  // --- first / last supported year: fixed dates still leap in from outside
+  {
+    auto c = cal("- \"25.12\": Nativity\n- \"p\": P\n", 1900, 13);
+    CHECK(data_at(c, 1, 7) == "Nativity");
+    auto e = cal("- \"05.01\": X\n", 2099, -10);   // 05.01.2100 - 10
+    CHECK(data_at(e, 12, 26) == "X");
   }
 
   // --- leap day
@@ -204,8 +217,9 @@ int main() {
       return false;
     };
     CHECK(throws("- \"31.04\": x\n", 2026, 0));
-    CHECK(throws("[]", 1500, 0));
-    CHECK(throws("[]", 10000, 0));
+    CHECK(throws("[]", 1899, 0));
+    CHECK(throws("[]", 2100, 0));
+    CHECK(!throws("[]", 1900, 0) && !throws("[]", 2099, 0));
     CHECK(throws("[]", 2026, 366));
     CHECK(throws("[]", 2026, -366));
     CHECK(!throws("[]", 2026, 365));

@@ -11,6 +11,7 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include "pascha.h"
 #include "validator.h"
 #include "year_calendar.h"
 
@@ -33,7 +34,7 @@ Options:
   -v --verbose  Show debug output.
   -q --quiet    Only show errors.
   -y <year>, --year=<year>
-                Generate the calendar of this year (1583..9999) and print
+                Generate the calendar of this year (1900..2099) and print
                 every day that has a rule: "YYYY-MM-DD<TAB>data".
   -o <days>, --offset=<days>
                 Shift all fixed (DD.MM) dates by this many days, e.g. 13
@@ -83,9 +84,9 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "year and offset must be whole numbers\n");
       return 3;
     }
-    if (year < 1583 || year > 9999 || offset < -365 || offset > 365) {
+    if (year < bcal::kMinYear || year > bcal::kMaxYear || offset < -365 || offset > 365) {
       std::fprintf(stderr,
-                   "year must be 1583..9999 and offset -365..365\n");
+                   "year must be 1900..2099 and offset -365..365\n");
       return 3;
     }
   }

@@ -88,7 +88,7 @@ for (const bcal::CalendarDay& day : cal) { /* 365 or 366 days, in order */ }
   with an offset of 13, 25.12. of the previous year falls on 7 January. Pascha-relative
   dates are not shifted. Weekday rules use the weekday of the shifted date.
 - 29.02. only exists in leap years; in other years the entry has no effect.
-- Years 1583..9999 and offsets of -365..365 are supported.
+- Years 1900..2099 (the Julian calendar is 13 days behind the Gregorian one in this range) and offsets of -365..365 are supported.
 
 ## Usage
 

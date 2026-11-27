@@ -38,6 +38,7 @@ std::optional<sys_days> resolve(const Day& d, int base_year, int offset,
     if (!ymd.ok()) return std::nullopt;
     return sys_days{ymd} + days{offset};
   }
+  if (base_year < kMinYear || base_year > kMaxYear) return std::nullopt;
   sys_days r = sys_days{orthodox_pascha(base_year)} + days{d.offset_days};
   if (d.next_weekday) {
     while (weekday_index(r) != *d.next_weekday) r += days{1};
@@ -51,8 +52,8 @@ std::optional<sys_days> resolve(const Day& d, int base_year, int offset,
 
 YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
     : year_(year), offset_days_(offset_days) {
-  if (year < 1583 || year > 9999)
-    throw std::invalid_argument("year must be in 1583..9999");
+  if (year < kMinYear || year > kMaxYear)
+    throw std::invalid_argument("year must be in 1900..2099");
   if (offset_days < -365 || offset_days > 365)
     throw std::invalid_argument("offset must be within +-365 days");
 
@@ -84,8 +85,6 @@ YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
       const auto pos = key.find("..");
 
       for (int base = year - 1; base <= year + 1; ++base) {
-        if (base < 1583 || base > 9999) continue;
-
         if (pos == std::string::npos) {
           auto day = parse_day(key).day;
           auto date = resolve(*day, base, offset_days, base);
