@@ -1,0 +1,2 @@
+template_dir:
+  - ../templates   # has no markdown.inja

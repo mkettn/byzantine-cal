@@ -7,10 +7,12 @@
 #include <cstdio>
 #include <fstream>
 #include <map>
+#include <optional>
 #include <string>
 
 #include <yaml-cpp/yaml.h>
 
+#include "byzantine_cal_config.h"
 #include "calendar_loader.h"
 #include "pascha.h"
 #include "template_backend.h"
@@ -27,7 +29,7 @@ Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>]]
+  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]]
                 <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
@@ -44,6 +46,9 @@ Options:
   -o <file>, --output=<file>
                 Write the result to this file instead of stdout.
                 Needs --year.
+  -C <file>     Configuration file (it names the template directories).
+                Default: bcal.yaml in the current directory, otherwise the
+                installed config.yaml. Needs --year.
   -h --help     Show this help.
   --version     Show version.
 
@@ -79,9 +84,9 @@ int main(int argc, char** argv) {
   const bool generate = static_cast<bool>(args["--year"]);
   if (generate ? !parse_int(args["--year"].asString(), year) ||
                      year < bcal::kMinYear || year > bcal::kMaxYear
-               : args["--old"].asBool() || args["--output"]) {
+               : args["--old"].asBool() || args["--output"] || args["-C"]) {
     std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old and --output need --year\n");
+                                  : "--old, --output and -C need --year\n");
     return 3;
   }
   const int offset_days =
@@ -116,9 +121,24 @@ int main(int argc, char** argv) {
 
   std::string text;
   try {
-    const bcal::MarkdownBackend backend(std::string(BCAL_TPL_DIR) + "/" +
-                                        bcal::MarkdownBackend::kTemplateFile);
-    text = backend.render(bcal::load_year_calendar(root, year, offset_days));
+    const bcal::ByzantineCalConfig config(bcal::ByzantineCalConfig::find_file(
+        args["-C"] ? std::optional<std::string>(args["-C"].asString()) : std::nullopt,
+        BCAL_CONFIG_FILE));
+    spdlog::debug("configuration {}", config.file().string());
+    const auto tpl = config.find_template(bcal::MarkdownBackend::kTemplateFile);
+    if (!tpl) {
+      spdlog::error("cannot find the template {} in the template_dir of {}",
+                    bcal::MarkdownBackend::kTemplateFile, config.file().string());
+      return 2;
+    }
+    text = bcal::MarkdownBackend(tpl->string())
+               .render(bcal::load_year_calendar(root, year, offset_days));
+  } catch (const bcal::ConfigFileError& e) {
+    spdlog::error("{}", e.what());
+    return 2;
+  } catch (const bcal::ConfigError& e) {
+    spdlog::error("{}", e.what());
+    return 1;
   } catch (const bcal::TemplateFileError& e) {
     spdlog::error("{}", e.what());
     return 2;

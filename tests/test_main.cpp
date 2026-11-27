@@ -1,9 +1,12 @@
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include "day.h"
 #include "pascha.h"
 #include "template_backend.h"
+#include "byzantine_cal_config.h"
 #include "calendar_loader.h"
 #include "validator.h"
 #include "year_calendar.h"
@@ -255,6 +258,66 @@ int main() {
     CHECK(throws<bcal::TemplateFileError>([&] { bcal::TemplateBackend(test_tpl("nope.inja")); }));
     CHECK(throws<bcal::TemplateFileError>([&] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR); }));   // a directory
     CHECK(throws<bcal::TemplateFileError>([] { bcal::MarkdownBackend("/no/such/file.inja"); }));
+  }
+
+  // --- configuration
+  {
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path() / "bcal-config-test";
+    fs::remove_all(dir);
+    fs::create_directories(dir / "a" / "tpl" / "dirname");
+    fs::create_directories(dir / "b");
+    auto write = [&](const char* name, const std::string& text) {
+      std::ofstream(dir / name) << text;
+      return dir / name;
+    };
+    write("a/tpl/one.inja", "1");
+    write("b/one.inja", "other");
+    write("b/two.inja", "2");
+
+    // template_dir: absolute names stay, relative ones are relative to the config file
+    const auto file = write("a/bcal.yaml", "template_dir:\n  - tpl\n  - ../b\n  - /abs/dir\n");
+    const bcal::ByzantineCalConfig c(file);
+    CHECK(c.file() == file);
+    CHECK((c.template_dirs() == std::vector<fs::path>{dir / "a" / "tpl", dir / "b", "/abs/dir"}));
+    CHECK(c.find_template("one.inja") == dir / "a" / "tpl" / "one.inja");   // the first dir wins
+    CHECK(c.find_template("two.inja") == dir / "b" / "two.inja");
+    CHECK(!c.find_template("none.inja") && !c.find_template("dirname"));      // a directory is no template
+    CHECK(bcal::ByzantineCalConfig(write("empty.yaml", "")).template_dirs().empty());
+    CHECK(bcal::ByzantineCalConfig(write("none.yaml", "template_dir: []\n")).template_dirs().empty());
+
+    // 0 = fine, 1 = invalid content, 2 = file cannot be read
+    auto kind = [&](const char* text) {
+      try { bcal::ByzantineCalConfig(write("x.yaml", text)); }
+      catch (const bcal::ConfigFileError&) { return 2; }
+      catch (const bcal::ConfigError&) { return 1; }
+      return 0;
+    };
+    CHECK(kind("template_dir: [a]\n") == 0);
+    for (const char* bad : {"- a\n", "template_dir: tpl\n", "template_dir:\n", "template_dir: [[a]]\n",
+                            "template_dir: ['']\n", "template_dirs: [a]\n", "template_dir: [a]\nx: 1\n",
+                            "template_dir: [a\n"})
+      CHECK(kind(bad) == 1);
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig(dir / "nope.yaml"); }));
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig{dir}; }));   // a directory
+    try {
+      bcal::ByzantineCalConfig(write("x.yaml", "template_dir: [a]\ntemplate_dirs: [b]\n"));
+    } catch (const bcal::ConfigError& e) {
+      const std::string what = e.what();
+      CHECK(what.find("x.yaml:2: unknown option \"template_dirs\"") != std::string::npos);
+    }
+
+    // which file: -C, else bcal.yaml in the working directory, else the installed one
+    const auto old_cwd = fs::current_path();
+    const std::string installed = (dir / "a" / "bcal.yaml").string();
+    fs::current_path(dir / "a");                                              // has a bcal.yaml
+    CHECK(bcal::ByzantineCalConfig::find_file(std::nullopt, "/no/such/file") == "bcal.yaml");
+    CHECK(bcal::ByzantineCalConfig::find_file(std::string("given.yaml"), installed) == "given.yaml");
+    fs::current_path(dir / "b");                                              // has none
+    CHECK(bcal::ByzantineCalConfig::find_file(std::nullopt, installed) == installed);
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig::find_file(std::nullopt, "/no/such/file"); }));
+    fs::current_path(old_cwd);
+    fs::remove_all(dir);
   }
 
   // --- invalid input / parameters

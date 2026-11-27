@@ -1,0 +1,6 @@
+# byzantine-cal configuration.
+#
+# template_dir: directories to look for templates, in this order. Absolute
+# names or names relative to the directory of this file.
+template_dir:
+  - tpl
