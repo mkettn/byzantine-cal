@@ -114,12 +114,11 @@ weekdays: [Monday, ..., Sunday]      # 7 names, Monday first
 ui: {date: Date, weekday: Weekday, data: Data, pascha: Pascha}   # texts for templates: `ui.date` etc.
 ```
 
-A language is a name that is safe in a file name (letters, digits, `_` and `-`). Names like
-`de_DE` are only a convention, taken from `setlocale()`, so `.UTF-8` is implied and ignored if
-given: any name works, and `--lang=foo_BAR` uses `foo_BAR.yaml` if there is one. The file of a
-language is the first that exists of the name and the name shortened at its last `_`, step by step
-(`de_DE.yaml`, `de.yaml`); if there is none, it is `en.yaml`. Every key is optional in a file, and a file
-can name a **fallback** language:
+A language is a name that is safe in a file name (letters, digits, `_`, `-`). Names like `de_DE`
+are a convention from `setlocale()`: `.UTF-8` is implied and ignored, and any name works, so
+`--lang=foo_BAR` uses `foo_BAR.yaml`. The file of a language is the first that exists of the name and
+the name shortened at its last `_`, step by step (`de_DE.yaml`, `de.yaml`), else `en.yaml`. Every key
+is optional, and a file can name a **fallback** language:
 
 ```yaml
 fallback: de_DE      # de_CH.yaml: everything else is as in de_DE
@@ -128,10 +127,9 @@ ui: {date: Datum}
 
 The fallback is read first and the keys of the file replace its keys (`ui` entry by entry), then
 the fallback of the fallback, and so on: `lang/de_AT.yaml` (`fallback: de`) only holds the months,
-`de.yaml` has `fallback: en`. A file is read only once: if a fallback refers back to a file that
-has been read already (a circular reference), that is logged as a warning and ignored. The months
-and weekdays have to be there at the end. The Markdown template escapes the texts; the calendar
-file itself is not translated, its names and data are printed as written.
+`de.yaml` has `fallback: en`. A file is read only once: a reference to a file that was read already
+(a circular fallback) is logged as a warning and ignored. The months and weekdays have to be there
+at the end. The Markdown template escapes the texts; the calendar file itself is not translated.
 
 The language is, in this order: `--lang=<locale>`, `language:` in the configuration, the first one
 set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C`, `POSIX` and values that are no valid name mean

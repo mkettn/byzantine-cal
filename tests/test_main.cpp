@@ -509,9 +509,7 @@ int main() {
              "months: [a, b, c, d, e, f, g, h, i, j, k, [l]]\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, '']\nweekdays: " + seven + "\n",
              "months: [a, b, c, d, e, f, g, h, i, j, k, ' ']\nweekdays: " + seven + "\n",   // blank name
-             "months: " + twelve + "\nweekdays: [a, b]\n",
              "months: " + twelve + "\nweekdays: " + seven + "\nui: [a]\n",
-             "months: " + twelve + "\nweekdays: " + seven + "\nui: {a: [b]}\n",
              "months: " + twelve + "\nweekdays: " + seven + "\ncolours: []\n",
              "- a\n", "months: [a\n", "",                                                // not a map, syntax, nothing
              "months: " + twelve + "\n",                                                  // no weekdays

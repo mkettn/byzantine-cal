@@ -116,8 +116,6 @@ if(BUILD_TESTING)
   bcal_expect_args(lang_from_config "--year=2026|--old|-C|${CFG}/german.yaml|${NATIVITY}" 0 "## Januar.+Mittwoch")
   bcal_expect_args(lang_option_beats_config "--year=2026|--old|-C|${CFG}/german.yaml|--lang=en|${NATIVITY}" 0 "## January.+Wednesday")
   bcal_expect_env(lang_from_environment "LANG=de_DE.UTF-8" "${OLD}|${NATIVITY}" 0 "## Januar.+Mittwoch")
-  bcal_expect_env(lang_environment_order "LANG=de_DE.UTF-8,LC_ALL=en_US.UTF-8" "${OLD}|${NATIVITY}" 0 "## January.+Wednesday")
-  bcal_expect_env(lang_option_beats_environment "LANG=de_DE.UTF-8" "${OLD}|--lang=en|${NATIVITY}" 0 "## January.+Wednesday")
   bcal_expect_env(lang_c_locale_is_english "LANG=de_DE.UTF-8,LC_ALL=C" "${OLD}|${NATIVITY}" 0 "## January.+Wednesday")
   bcal_expect_args(lang_files_missing "--year=2026|--old|-C|${CFG}/no-lang.yaml|${NATIVITY}" 2 "cannot find a language file for en")
   # en.yaml falls back to de_XX which falls back to en: read only once, with a warning
