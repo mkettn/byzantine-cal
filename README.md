@@ -91,10 +91,12 @@ template_dir:          # directories to look for templates, in this order
   - tpl                # a name relative to the directory of this file
 ```
 
-Unknown options are an error. The file is, in this order:
+Relative names are relative to the directory of the path the file is given by (a symlink is not
+followed). Unknown options, an option that is set twice and several YAML documents are an error. The file is, in this order:
 
 1. the one given with `-C <file>`,
-2. `bcal.yaml` in the current directory,
+2. `bcal.yaml` in the current directory (if there is something with that name it is used, and
+   reported if it cannot be read),
 3. `config.yaml` in the installation directory (`/usr/local/lib/byzantine-cal/config.yaml`),
    which names the installed `tpl` directory.
 

@@ -22,14 +22,17 @@ class ConfigFileError : public ConfigError {
 //   template_dir:        # directories to look for templates, in this order
 //     - /usr/share/tpl   # absolute, or
 //     - tpl              # relative to the directory of the configuration file
+//                        # (the directory of the given path, symlinks are not followed)
 //
-// Unknown options are an error.
+// Unknown options, an option that is set twice and several YAML documents are
+// an error.
 class ByzantineCalConfig {
  public:
   // The configuration file to use: `path_from_cli` (-C) if given, otherwise
-  // bcal.yaml in the current directory, otherwise `installed_file`. An
-  // explicit path is returned as it is (the constructor reports it if it is
-  // unusable). Throws ConfigFileError if there is no configuration file.
+  // bcal.yaml in the current directory, otherwise `installed_file`. A path is
+  // returned as it is if there is something at it, also if that is unusable (a
+  // directory, a broken symlink): the constructor reports that. Throws
+  // ConfigFileError if there is no configuration file at all.
   static std::filesystem::path find_file(
       const std::optional<std::string>& path_from_cli,
       const std::string& installed_file);

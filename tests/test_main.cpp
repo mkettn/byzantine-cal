@@ -1,3 +1,4 @@
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -263,8 +264,18 @@ int main() {
   // --- configuration
   {
     namespace fs = std::filesystem;
-    const fs::path dir = fs::temp_directory_path() / "bcal-config-test";
-    fs::remove_all(dir);
+    // A directory of its own that is removed, and the working directory restored, also if a check throws.
+    struct Sandbox {
+      fs::path dir = fs::temp_directory_path() /
+                     ("bcal-config-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+      fs::path cwd = fs::current_path();
+      ~Sandbox() {
+        std::error_code ec;
+        fs::current_path(cwd, ec);
+        fs::remove_all(dir, ec);
+      }
+    } sandbox;
+    const fs::path& dir = sandbox.dir;
     fs::create_directories(dir / "a" / "tpl" / "dirname");
     fs::create_directories(dir / "b");
     auto write = [&](const char* name, const std::string& text) {
@@ -309,7 +320,8 @@ int main() {
     CHECK(kind("template_dir: [a]\n") == 0);
     for (const char* bad : {"- a\n", "template_dir: tpl\n", "template_dir:\n", "template_dir: [[a]]\n",
                             "template_dir: ['']\n", "template_dirs: [a]\n", "template_dir: [a]\nx: 1\n",
-                            "template_dir: [a\n"})
+                            "template_dir: [a\n", "template_dir: [a]\ntemplate_dir: [b]\n",
+                            "template_dir: [a]\n---\ntemplate_dir: [b]\n"})
       CHECK(kind(bad) == 1);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig(dir / "nope.yaml"); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig{dir}; }));   // a directory
@@ -321,7 +333,6 @@ int main() {
     }
 
     // which file: -C, else bcal.yaml in the working directory, else the installed one
-    const auto old_cwd = fs::current_path();
     const std::string installed = (dir / "a" / "bcal.yaml").string();
     fs::current_path(dir / "a");                                              // has a bcal.yaml
     CHECK(bcal::ByzantineCalConfig::find_file(std::nullopt, "/no/such/file") == "bcal.yaml");
@@ -329,8 +340,18 @@ int main() {
     fs::current_path(dir / "b");                                              // has none
     CHECK(bcal::ByzantineCalConfig::find_file(std::nullopt, installed) == installed);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig::find_file(std::nullopt, "/no/such/file"); }));
-    fs::current_path(old_cwd);
-    fs::remove_all(dir);
+    // something unusable named bcal.yaml is not skipped, it is reported when it is read
+    fs::create_directories(dir / "c" / "bcal.yaml");                          // a directory
+    fs::create_directories(dir / "d");
+    fs::create_symlink("bcal.yaml", dir / "d" / "bcal.yaml");                 // a symlink loop
+    fs::create_directories(dir / "e");
+    fs::create_symlink("nowhere.yaml", dir / "e" / "bcal.yaml");              // a dangling symlink
+    for (const char* sub : {"c", "d", "e"}) {
+      fs::current_path(dir / sub);
+      const auto found = bcal::ByzantineCalConfig::find_file(std::nullopt, installed);
+      CHECK(found == "bcal.yaml");
+      CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig{found}; }));
+    }
   }
 
   // --- invalid input / parameters

@@ -97,9 +97,10 @@ if(BUILD_TESTING)
            COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal> -DCONFIG=${BCAL_CONFIG_FILE}
                    -DYAML=${NATIVITY} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/default_config.cmake)
   # The configuration file: bcal.yaml in the working directory, -C wins over it.
-  bcal_expect_args(config_in_working_dir "--year=2026|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12" ${CFG})
-  bcal_expect_args(config_option_wins "--year=2026|-C|no-template.yaml|${NATIVITY}" 2
-                   "cannot find the template markdown.inja in the template_dir of no-template.yaml" ${CFG})
+  # (tests/config/cwd has its own template, so an installed config would give other output)
+  bcal_expect_args(config_in_working_dir "--year=2026|${NATIVITY}" 0 "cwd template 2026" ${CFG}/cwd)
+  bcal_expect_args(config_option_wins "--year=2026|-C|${CFG}/no-template.yaml|${NATIVITY}" 2
+                   "cannot find the template markdown.inja in the template_dir of ${CFG}/no-template.yaml" ${CFG}/cwd)
   bcal_expect_args(config_missing "--year=2026|-C|${CFG}/nope.yaml|${NATIVITY}" 2 "cannot read configuration file")
   bcal_expect_args(config_invalid "--year=2026|-C|${CFG}/invalid.yaml|${NATIVITY}" 1 "invalid.yaml:1: template_dir must be a list")
   bcal_expect_args(config_without_year "-C|${CFG}/bcal.yaml|${NATIVITY}" 3 "need --year")
