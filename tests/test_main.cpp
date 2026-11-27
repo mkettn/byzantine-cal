@@ -3,6 +3,7 @@
 
 #include "day.h"
 #include "pascha.h"
+#include "template_backend.h"
 #include "calendar_loader.h"
 #include "validator.h"
 #include "year_calendar.h"
@@ -201,6 +202,59 @@ int main() {
     n.add_range(D("29.02"), D("02.03"), bcal::all_weekdays(), "s");
     l.add_range(D("27.02"), D("01.03"), bcal::all_weekdays(), "r");
     CHECK(hits(n) == 0 && data_at(l, 2, 29) == "r" && data_at(l, 3, 1) == "r");
+  }
+
+  // --- template backend
+  {
+    bcal::YearCalendar c(2026, 13);
+    c.add_day(D("25.12"), "Nativity");
+    c.add_range(D("p"), D("p+1d"), bcal::all_weekdays(), "a|b");
+    auto j = bcal::calendar_to_json(c);
+    CHECK(j["year"] == 2026 && j["offset_days"] == 13 && j["pascha"] == "2026-04-12");
+    CHECK(j["days"].size() == 365 && j["months"].size() == 12);
+    CHECK(j["months"][0]["name"] == "January" && j["months"][0]["rule_count"] == 1);
+    CHECK(j["months"][3]["rule_count"] == 2 && j["months"][1]["rule_count"] == 0);
+    CHECK(j["months"][0]["days"].size() == 31 && j["months"][1]["days"].size() == 28);
+    const auto& d = j["months"][0]["days"][6];          // 7 January 2026 (25.12.2025 + 13)
+    CHECK(d["date"] == "2026-01-07" && d["day"] == 7 && d["month"] == 1 && d["year"] == 2026);
+    CHECK(d["weekday"] == 3 && d["weekday_name"] == "Wednesday");
+    CHECK(d["has_rule"] == true && d["data"] == "Nativity");
+    CHECK(j["days"][0]["has_rule"] == false && j["days"][0]["data"] == "");
+
+    auto render = [&](const char* t) { return bcal::render_template(c, t); };
+    CHECK(render("{{ year }}/{{ pascha }}") == "2026/2026-04-12");
+    CHECK(render("## {{ year }}") == "## 2026");                      // not an inja line statement
+    CHECK(render("{% for d in days %}\n{% if d.has_rule %}\n{{ d.date }}={{ d.data }};\n"
+                 "{% endif %}\n{% endfor %}\n") == "2026-01-07=Nativity;\n2026-04-12=a|b;\n2026-04-13=a|b;\n");
+    CHECK(bcal::escape_markdown("a|b `c` *d* _e_ [f](g) <h> #i +j -k l. m! ~n &o \\p") ==
+          "a\\|b \\`c\\` \\*d\\* \\_e\\_ \\[f\\]\\(g\\) \\<h\\> \\#i \\+j \\-k l\\. m\\! \\~n \\&o \\\\p");
+    CHECK(bcal::escape_markdown("plain text 123") == "plain text 123");
+    CHECK(bcal::escape_markdown("a\nb\r\nc") == "a<br>b<br>c" && bcal::escape_markdown("") == "");
+    CHECK(render("{{ escape_markdown(\"a|b_c\") }}") == "a\\|b\\_c");
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ escape_markdown(1) }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{% if %}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ no_such_value }}"); }));
+    // any failure caused by a template, e.g. a list that cannot be allocated
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ range(99999999999999) }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ 1 / 0 }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ escape_markdown() }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ upper(1) }}"); }));
+  }
+
+  // --- backends read their template from a file
+  {
+    bcal::YearCalendar c(2026, 13);
+    c.add_day(D("25.12"), "Nativity|x");
+    auto test_tpl = [](const char* name) { return std::string(BCAL_TEST_TPL_DIR) + "/" + name; };
+    CHECK(bcal::TemplateBackend(test_tpl("list.txt.inja")).render(c) == "2026-01-07;3;Nativity|x\n");
+    const auto md = bcal::MarkdownBackend(std::string(BCAL_TPL_DIR) + "/" +
+                                          bcal::MarkdownBackend::kTemplateFile).render(c);
+    CHECK(md.find("# 2026\n\nPascha: 2026-04-12\n\n## January\n") == 0);
+    CHECK(md.find("| 2026-01-07 | Wednesday | Nativity\\|x |\n") != std::string::npos);
+    CHECK(md.find("## February") == std::string::npos);            // no rules: no table
+    CHECK(throws<bcal::TemplateFileError>([&] { bcal::TemplateBackend(test_tpl("nope.inja")); }));
+    CHECK(throws<bcal::TemplateFileError>([&] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR); }));   // a directory
+    CHECK(throws<bcal::TemplateFileError>([] { bcal::MarkdownBackend("/no/such/file.inja"); }));
   }
 
   // --- invalid input / parameters

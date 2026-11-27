@@ -1,0 +1,17 @@
+# {{ year }}
+
+Pascha: {{ pascha }}
+{% for month in months %}
+{% if month.rule_count > 0 %}
+
+## {{ month.name }}
+
+| Date | Weekday | Data |
+|------|---------|------|
+{% for day in month.days %}
+{% if day.has_rule %}
+| {{ day.date }} | {{ day.weekday_name }} | {{ escape_markdown(day.data) }} |
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}

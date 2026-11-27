@@ -1,0 +1,5 @@
+{% for day in days %}
+{% if day.has_rule %}
+{{ day.date }};{{ day.weekday }};{{ day.data }}
+{% endif %}
+{% endfor %}

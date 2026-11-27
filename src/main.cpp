@@ -5,14 +5,16 @@
 
 #include <charconv>
 #include <cstdio>
+#include <fstream>
 #include <map>
 #include <string>
 
 #include <yaml-cpp/yaml.h>
 
-#include "pascha.h"
-#include "validator.h"
 #include "calendar_loader.h"
+#include "pascha.h"
+#include "template_backend.h"
+#include "validator.h"
 
 static bool parse_int(const std::string& text, int& out) {
   auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), out);
@@ -25,7 +27,8 @@ Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--old]] <yaml_file>
+  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>]]
+                <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
 
@@ -33,15 +36,18 @@ Options:
   -v --verbose  Show debug output.
   -q --quiet    Only show errors.
   -y <year>, --year=<year>
-                Generate the calendar of this year and print
-                every day that has a rule: "YYYY-MM-DD<TAB>data".
+                Generate the calendar of this year and render it as
+                Markdown.
   --old         Old (Julian) calendar: shift all fixed (DD.MM) dates by
                 13 days, e.g. 25.12 becomes 7 January. Pascha dates are
                 not shifted. Needs --year.
+  -o <file>, --output=<file>
+                Write the result to this file instead of stdout.
+                Needs --year.
   -h --help     Show this help.
   --version     Show version.
 
-Exit status: 0 = valid, 1 = invalid, 2 = file could not be read,
+Exit status: 0 = valid, 1 = invalid, 2 = a file could not be read or written,
 3 = wrong command line.
 )";
 
@@ -73,9 +79,9 @@ int main(int argc, char** argv) {
   const bool generate = static_cast<bool>(args["--year"]);
   if (generate ? !parse_int(args["--year"].asString(), year) ||
                      year < bcal::kMinYear || year > bcal::kMaxYear
-               : args["--old"].asBool()) {
+               : args["--old"].asBool() || args["--output"]) {
     std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old needs --year\n");
+                                  : "--old and --output need --year\n");
     return 3;
   }
   const int offset_days =
@@ -106,12 +112,36 @@ int main(int argc, char** argv) {
   }
   spdlog::info("{}: OK ({} entries)", path, report.entries);
 
-  if (generate) {
-    for (const auto& day : bcal::load_year_calendar(root, year, offset_days))
-      if (day.has_rule())
-        std::printf("%04d-%02u-%02u\t%s\n", static_cast<int>(day.date.year()),
-                    static_cast<unsigned>(day.date.month()),
-                    static_cast<unsigned>(day.date.day()), day.data->c_str());
+  if (!generate) return 0;
+
+  std::string text;
+  try {
+    const bcal::MarkdownBackend backend(std::string(BCAL_TPL_DIR) + "/" +
+                                        bcal::MarkdownBackend::kTemplateFile);
+    text = backend.render(bcal::load_year_calendar(root, year, offset_days));
+  } catch (const bcal::TemplateFileError& e) {
+    spdlog::error("{}", e.what());
+    return 2;
+  } catch (const bcal::TemplateError& e) {
+    spdlog::error("template error: {}", e.what());
+    return 1;
+  } catch (const std::exception& e) {
+    spdlog::error("cannot generate the calendar: {}", e.what());
+    return 1;
   }
-  return 0;
+
+  // Any failure to write is an error, also one that only shows when flushing.
+  bool written;
+  if (args["--output"]) {
+    const auto out_path = args["--output"].asString();
+    std::ofstream out(out_path);
+    out << text;
+    out.close();
+    written = !out.fail();
+    if (!written) spdlog::error("cannot write {}", out_path);
+  } else {
+    written = std::fputs(text.c_str(), stdout) >= 0 && std::fflush(stdout) == 0;
+    if (!written) spdlog::error("cannot write to stdout");
+  }
+  return written ? 0 : 2;
 }
