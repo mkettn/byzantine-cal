@@ -41,10 +41,13 @@ void check_rule(Report& r, const YAML::Node& at, const YAML::Node& v) {
 // and arbitrary further fields ({rule: no_meat, note: ...}).
 void check_range_rule(Report& r, const YAML::Node& v) {
   if (v.IsMap()) {
-    if (!v["rule"])
-      add(r, v, "rule with data needs a \"rule\" field");
-    else
-      check_rule(r, v["rule"], v["rule"]);
+    int rules = 0;
+    for (const auto& kv : v)
+      if (kv.first.IsScalar() && kv.first.Scalar() == "rule") {
+        ++rules;
+        check_rule(r, kv.second, kv.second);
+      }
+    if (rules == 0) add(r, v, "rule with data needs a \"rule\" field");
     return;
   }
   check_rule(r, v, v);

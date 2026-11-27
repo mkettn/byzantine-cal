@@ -1,5 +1,7 @@
 #include "year_calendar.h"
 
+#include <algorithm>
+#include <cstdlib>
 #include <sstream>
 #include <stdexcept>
 
@@ -84,7 +86,20 @@ YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
       const std::string key = kv.first.Scalar();
       const auto pos = key.find("..");
 
-      for (int base = year - 1; base <= year + 1; ++base) {
+      // Fixed dates (offset <= 365 days) need the neighbouring years only.
+      // Pascha-relative dates with a long offset can come from years further
+      // away, so widen the range by the size of their offset.
+      int span = 1;
+      for (const auto& part :
+           pos == std::string::npos
+               ? std::vector<std::string>{key}
+               : std::vector<std::string>{key.substr(0, pos), key.substr(pos + 2)}) {
+        auto d = *parse_day(part).day;
+        if (d.kind == Day::Kind::Pascha)
+          span = std::max(span, std::abs(d.offset_days) / 365 + 2);
+      }
+
+      for (int base = year - span; base <= year + span; ++base) {
         if (pos == std::string::npos) {
           auto day = parse_day(key).day;
           auto date = resolve(*day, base, offset_days, base);
@@ -132,6 +147,9 @@ const CalendarDay& YearCalendar::at(year_month_day date) const {
 }
 
 const CalendarDay& YearCalendar::at(unsigned month, unsigned day) const {
+  // Reject values that the chrono types would silently truncate.
+  if (month > 12 || day > 31)
+    throw std::out_of_range("not a valid month or day");
   return at(std::chrono::year{year_} / std::chrono::month{month} /
             std::chrono::day{day});
 }

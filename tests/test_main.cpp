@@ -59,6 +59,8 @@ int main() {
   CHECK(yaml_ok("- \"01.01..02.01\":\n    mon: {rule: no_oil, note: x}\n"));
   CHECK(!yaml_ok("- \"01.01..02.01\":\n    mon: {note: x}\n"));
   CHECK(!yaml_ok("- \"01.01..02.01\":\n    mon: {rule: bogus}\n"));
+  CHECK(!yaml_ok("- \"01.01..02.01\":\n    mon: {rule: no_meat, rule: bogus}\n"));
+  CHECK(!yaml_ok("- \"25.12\": {name: X, rule: no_meat, rule: bogus}\n"));
 
 
   // --- Orthodox Pascha (Gregorian dates)
@@ -212,6 +214,28 @@ int main() {
     CHECK(data_at(l, 3, 1) == "B");
     CHECK(data_at(l, 3, 2) == "no_dairy");
     CHECK(data_at(l, 3, 3) == "E");
+  }
+
+  // --- Pascha-relative dates with offsets of more than a year
+  {
+    auto c = cal("- \"p+800d\": far\n- \"p-500d\": neg\n- \"p+120w\": w\n", 2026);
+    CHECK(data_at(c, 7, 14) == "far");    // Pascha 2024 (5.5.) + 800 days
+    CHECK(data_at(c, 12, 3) == "neg");    // Pascha 2028 (16.4.) - 500 days
+    int hits = 0;
+    for (const auto& d : c) hits += d.has_rule();
+    CHECK(hits >= 2);
+  }
+
+  // --- at() rejects out-of-range arguments instead of truncating them
+  {
+    auto c = cal("[]", 2026);
+    auto throws_at = [&](unsigned m, unsigned d) {
+      try { c.at(m, d); } catch (const std::out_of_range&) { return true; }
+      return false;
+    };
+    CHECK(throws_at(1, 257) && throws_at(257, 1) && throws_at(0, 0) &&
+          throws_at(13, 1) && throws_at(2, 29) && throws_at(4, 31));
+    CHECK(!throws_at(1, 1) && !throws_at(12, 31));
   }
 
   // --- invalid input / parameters
