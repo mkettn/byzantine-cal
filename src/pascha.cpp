@@ -6,7 +6,7 @@ namespace bcal {
 
 std::chrono::year_month_day orthodox_pascha(int year) {
   using namespace std::chrono;
-  if (year < kMinYear || year > kMaxYear)
+  if (year < kPaschaMinYear || year > kPaschaMaxYear)
     throw std::out_of_range("year must be in 1900..2099");
 
   // Meeus' Julian algorithm gives the date in the Julian calendar.

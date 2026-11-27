@@ -69,6 +69,7 @@ int main() {
   CHECK(is_pascha(2025, 4, 20));
   CHECK(is_pascha(2026, 4, 12));
   CHECK(is_pascha(2027, 5, 2));
+  CHECK(is_pascha(2028, 4, 16));
   {
     bool lo = false, hi = false;
     try { bcal::orthodox_pascha(1899); } catch (const std::out_of_range&) { lo = true; }
@@ -78,18 +79,18 @@ int main() {
 
   // --- YearCalendar: size, iteration, queries
   {
-    auto c = cal("[]", 2024);
-    CHECK(c.size() == 366 && c.year() == 2024);
-    CHECK(cal("[]", 2025).size() == 365);
-    CHECK(c.begin()->date == year{2024} / January / 1);
-    CHECK((c.end() - 1)->date == year{2024} / December / 31);
-    CHECK(c.at(2, 29).date == year{2024} / February / 29);
-    CHECK(c.at(year{2024} / March / 1).weekday() == Friday);
+    auto c = cal("[]", 2028);                  // leap year
+    CHECK(c.size() == 366 && c.year() == 2028);
+    CHECK(cal("[]", 2027).size() == 365);
+    CHECK(c.begin()->date == year{2028} / January / 1);
+    CHECK((c.end() - 1)->date == year{2028} / December / 31);
+    CHECK(c.at(2, 29).date == year{2028} / February / 29);
+    CHECK(c.at(year{2028} / March / 1).weekday() == Wednesday);
     bool threw = false;
-    try { c.at(year{2025} / January / 1); } catch (const std::out_of_range&) { threw = true; }
+    try { c.at(year{2029} / January / 1); } catch (const std::out_of_range&) { threw = true; }
     CHECK(threw);
     threw = false;
-    try { cal("[]", 2025).at(2, 29); } catch (const std::out_of_range&) { threw = true; }
+    try { cal("[]", 2027).at(2, 29); } catch (const std::out_of_range&) { threw = true; }
     CHECK(threw);
     int n = 0, with_rule = 0;
     for (const auto& d : c) { ++n; with_rule += d.has_rule(); }
@@ -139,7 +140,7 @@ int main() {
 
   // --- first / last supported year: fixed dates still leap in from outside
   {
-    auto c = cal("- \"25.12\": Nativity\n- \"p\": P\n", 1900, 13);
+    auto c = cal("- \"25.12\": Nativity\n- \"p\": P\n", 2026, 13);
     CHECK(data_at(c, 1, 7) == "Nativity");
     auto e = cal("- \"05.01\": X\n", 2099, -10);   // 05.01.2100 - 10
     CHECK(data_at(e, 12, 26) == "X");
@@ -148,15 +149,15 @@ int main() {
   // --- leap day
   {
     const char* y = "- \"29.02\": Leap\n";
-    auto c24 = cal(y, 2024);
+    auto c24 = cal(y, 2028);
     CHECK(data_at(c24, 2, 29) == "Leap");
-    auto c25 = cal(y, 2025);                   // no 29.02. -> no day, no error
+    auto c25 = cal(y, 2027);                   // no 29.02. -> no day, no error
     int hits = 0;
     for (const auto& d : c25) hits += d.has_rule();
     CHECK(hits == 0);
-    auto c24o = cal(y, 2024, 13);              // 29.02.2024 + 13 = 13.03.
+    auto c24o = cal(y, 2028, 13);              // 29.02.2028 + 13 = 13.03.
     CHECK(data_at(c24o, 3, 13) == "Leap" && data_at(c24o, 2, 29) == "-");
-    auto c25o = cal(y, 2025, 13);              // 29.02.2024 + 13 is not in 2025
+    auto c25o = cal(y, 2027, 13);              // 29.02.2028 + 13 is not in 2027
     hits = 0;
     for (const auto& d : c25o) hits += d.has_rule();
     CHECK(hits == 0);
@@ -169,10 +170,10 @@ int main() {
   {
     const char* y = "- \"p\": Pascha\n- \"p+39\": Ascension\n- \"p-7w<wed\": W\n";
     for (int off : {0, 13, -20}) {
-      auto c = cal(y, 2024, off);
-      CHECK(data_at(c, 5, 5) == "Pascha");
-      CHECK(data_at(c, 6, 13) == "Ascension");
-      CHECK(data_at(c, 3, 13) == "W");          // 17.3. is a Sunday; previous Wednesday
+      auto c = cal(y, 2028, off);
+      CHECK(data_at(c, 4, 16) == "Pascha");
+      CHECK(data_at(c, 5, 25) == "Ascension");
+      CHECK(data_at(c, 2, 23) == "W");          // 27.2. is a Sunday; previous Wednesday
     }
   }
 
@@ -196,10 +197,10 @@ int main() {
     auto s = cal("- \"01.03..07.03\":\n    sun: no_oil\n", 2026, 13);  // 14.-20.03.
     CHECK(data_at(s, 3, 15) == "no_oil" && data_at(s, 3, 8) == "-");
 
-    // Pascha range, including one that reaches from last year into this one
-    auto p = cal("- \"p..p+6d\":\n    mon..sun: no_fast\n", 2024);
-    CHECK(data_at(p, 5, 5) == "no_fast" && data_at(p, 5, 11) == "no_fast");
-    CHECK(data_at(p, 5, 12) == "-");
+    // Pascha range
+    auto p = cal("- \"p..p+6d\":\n    mon..sun: no_fast\n", 2028);
+    CHECK(data_at(p, 4, 16) == "no_fast" && data_at(p, 4, 22) == "no_fast");
+    CHECK(data_at(p, 4, 23) == "-" && data_at(p, 4, 15) == "-");
 
     // later entries / later weekday keys win
     auto l = cal("- \"01.03\": A\n- \"01.03\": B\n"
@@ -217,9 +218,9 @@ int main() {
       return false;
     };
     CHECK(throws("- \"31.04\": x\n", 2026, 0));
-    CHECK(throws("[]", 1899, 0));
+    CHECK(throws("[]", 2025, 0));
     CHECK(throws("[]", 2100, 0));
-    CHECK(!throws("[]", 1900, 0) && !throws("[]", 2099, 0));
+    CHECK(!throws("[]", 2026, 0) && !throws("[]", 2099, 0));
     CHECK(throws("[]", 2026, 366));
     CHECK(throws("[]", 2026, -366));
     CHECK(!throws("[]", 2026, 365));

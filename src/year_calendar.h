@@ -38,7 +38,7 @@ class YearCalendar {
   using const_iterator = std::vector<CalendarDay>::const_iterator;
 
   // `root` must be a valid calendar document (see validate()); throws
-  // std::invalid_argument if it is not, or if year (1900..2099) / offset
+  // std::invalid_argument if it is not, or if year (2026..2099) / offset
   // are out of range.
   YearCalendar(const YAML::Node& root, int year, int offset_days = 0);
 

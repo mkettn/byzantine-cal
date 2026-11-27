@@ -34,7 +34,7 @@ Options:
   -v --verbose  Show debug output.
   -q --quiet    Only show errors.
   -y <year>, --year=<year>
-                Generate the calendar of this year (1900..2099) and print
+                Generate the calendar of this year (2026..2099) and print
                 every day that has a rule: "YYYY-MM-DD<TAB>data".
   -o <days>, --offset=<days>
                 Shift all fixed (DD.MM) dates by this many days, e.g. 13
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     }
     if (year < bcal::kMinYear || year > bcal::kMaxYear || offset < -365 || offset > 365) {
       std::fprintf(stderr,
-                   "year must be 1900..2099 and offset -365..365\n");
+                   "year must be 2026..2099 and offset -365..365\n");
       return 3;
     }
   }
