@@ -36,24 +36,19 @@ nlohmann::json day_to_json(const CalendarDay& d) {
           {"data", d.data.value_or("")}};
 }
 
-std::string iso_date(std::chrono::year_month_day d) {
-  return day_to_json({d, std::nullopt})["date"];
-}
-
 }  // namespace
 
 std::string escape_markdown(const std::string& text) {
   std::string out;
-  for (std::size_t i = 0; i < text.size(); ++i) {
-    const char c = text[i];
-    if (c == '\r' && i + 1 < text.size() && text[i + 1] == '\n') continue;
-    if (c == '\n' || c == '\r') {
+  for (const char c : text) {
+    if (c == '\r') continue;
+    if (c == '\n') {
       out += "<br>";
-    } else {
-      if (std::string_view("\\`*_{}[]()<>#+-.!|~&").find(c) != std::string_view::npos)
-        out += '\\';
-      out += c;
+      continue;
     }
+    if (std::string_view("\\`*_{}[]()<>#+-.!|~&").find(c) != std::string_view::npos)
+      out += '\\';
+    out += c;
   }
   return out;
 }
@@ -76,7 +71,7 @@ nlohmann::json calendar_to_json(const YearCalendar& calendar) {
   }
   return {{"year", calendar.year()},
           {"offset_days", calendar.offset_days()},
-          {"pascha", iso_date(calendar.pascha())},
+          {"pascha", day_to_json({calendar.pascha(), std::nullopt})["date"]},
           {"days", std::move(days)},
           {"months", std::move(months)}};
 }
@@ -90,16 +85,6 @@ std::string render_template(const YearCalendar& calendar,
     env.set_lstrip_blocks(true);
     env.add_callback("escape_markdown", 1, [](inja::Arguments& args) {
       return escape_markdown(args.at(0)->get<std::string>());
-    });
-    env.add_callback("replace", 3, [](inja::Arguments& args) {
-      std::string text = args.at(0)->get<std::string>();
-      const auto from = args.at(1)->get<std::string>();
-      const auto to = args.at(2)->get<std::string>();
-      if (!from.empty())
-        for (std::size_t pos = 0; (pos = text.find(from, pos)) != std::string::npos;
-             pos += to.size())
-          text.replace(pos, from.size(), to);
-      return text;
     });
     return env.render(template_text, calendar_to_json(calendar));
   } catch (const std::exception& e) {

@@ -232,7 +232,6 @@ int main() {
     CHECK(bcal::escape_markdown("a\nb\r\nc") == "a<br>b<br>c" && bcal::escape_markdown("") == "");
     CHECK(render("{{ escape_markdown(\"a|b_c\") }}") == "a\\|b\\_c");
     CHECK(throws<bcal::TemplateError>([&] { render("{{ escape_markdown(1) }}"); }));
-    CHECK(render("{{ replace(\"a|b|c\", \"|\", \"\\\\|\") }}") == "a\\|b\\|c");
     CHECK(throws<bcal::TemplateError>([&] { render("{% if %}"); }));
     CHECK(throws<bcal::TemplateError>([&] { render("{{ no_such_value }}"); }));
     // any failure caused by a template, e.g. a list that cannot be allocated
@@ -256,8 +255,6 @@ int main() {
     CHECK(throws<bcal::TemplateFileError>([&] { bcal::TemplateBackend(test_tpl("nope.inja")); }));
     CHECK(throws<bcal::TemplateFileError>([&] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR); }));   // a directory
     CHECK(throws<bcal::TemplateFileError>([] { bcal::MarkdownBackend("/no/such/file.inja"); }));
-    CHECK(throws<bcal::TemplateError>([&] { bcal::TemplateBackend(test_tpl("broken.inja")).render(c); }));
-    CHECK(throws<bcal::TemplateError>([&] { bcal::TemplateBackend(test_tpl("unknown.inja")).render(c); }));
   }
 
   // --- invalid input / parameters

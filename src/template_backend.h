@@ -25,18 +25,16 @@ class TemplateFileError : public TemplateError {
   using TemplateError::TemplateError;
 };
 
-// Escapes text for Markdown: every character that has a meaning there
-// (\ ` * _ { } [ ] ( ) < > # + - . ! | ~ &) gets a backslash, so the text is
-// shown literally, also in a table cell. Newlines become <br>.
+// Escapes text for Markdown: every character with a meaning there
+// (\ ` * _ { } [ ] ( ) < > # + - . ! | ~ &) gets a backslash, so it is shown
+// literally, also in a table cell. Newlines become <br>.
 std::string escape_markdown(const std::string& text);
 
 // Renders an inja template with the data of calendar_to_json(). Besides the
-// inja built-ins, the functions replace(text, from, to) and
-// escape_markdown(text) are available. Blocks
-// ({% ... %}) that are alone on their line leave no empty line behind. Line
-// statements start with "%%" (not inja's default "##", a Markdown heading).
-// Throws TemplateError if the template is invalid or cannot be rendered, for
-// whatever reason.
+// inja built-ins, escape_markdown(text) is available. Blocks ({% ... %}) alone
+// on a line leave no empty line behind; line statements start with "%%" (inja's
+// default "##" is a Markdown heading). Throws TemplateError if the template is
+// invalid or cannot be rendered, for whatever reason.
 std::string render_template(const YearCalendar& calendar,
                             const std::string& template_text);
 
@@ -55,8 +53,7 @@ class TemplateBackend {
   std::string template_;
 };
 
-// The Markdown backend. Its template is markdown.inja, to be looked for in the
-// directory the templates are installed to.
+// The Markdown backend; its template is markdown.inja.
 class MarkdownBackend : public TemplateBackend {
  public:
   static constexpr const char* kTemplateFile = "markdown.inja";

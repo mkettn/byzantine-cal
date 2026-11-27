@@ -117,41 +117,24 @@ for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 
 ## Template backends
 
-The output is produced by a backend that works on the `YearCalendar`
-(`src/template_backend.h`). A backend reads an [inja](https://github.com/pantor/inja) template
-from a file and renders the calendar with it, so a new output format (HTML, ICS, ...) is just
-another template with its own backend class. The constructor takes the path of the template file.
-The template of `MarkdownBackend` is `markdown.inja` (`MarkdownBackend::kTemplateFile`); it is
-`tpl/markdown.inja` in the sources and installed with the program (see [Install](#install)).
+A backend (`src/template_backend.h`) renders the `YearCalendar` with an
+[inja](https://github.com/pantor/inja) template read from a file, so a new output format (HTML,
+ICS, ...) is another template with its own backend class. `MarkdownBackend`'s template is
+`markdown.inja` (`tpl/markdown.inja` in the sources, installed with the program, see
+[Install](#install)).
 
 ```cpp
 bcal::MarkdownBackend backend("/usr/local/lib/byzantine-cal/tpl/markdown.inja");
 std::string text = backend.render(calendar);   // TemplateFileError / TemplateError on failure
 ```
 
-`calendar_to_json()` hands the calendar to the template as JSON (nlohmann_json):
-
-| Value | Content |
-|---|---|
-| `year`, `offset_days`, `pascha` | Year, offset, date of Pascha (`YYYY-MM-DD`) |
-| `days` | Every day of the year, in order |
-| `months` | `number`, `name`, `rule_count` and the `days` of each month |
-
-Each day has `date` (`YYYY-MM-DD`), `year`, `month`, `day`, `weekday` (1 = Monday .. 7 = Sunday),
-`weekday_name`, `has_rule` and `data` (the data of its rule, empty without one).
-
-Besides the inja built-ins the functions `replace(text, from, to)` and `escape_markdown(text)`
-(backslash-escapes everything that has a meaning in Markdown, newlines become `<br>`) are available. Blocks
-(`{% ... %}`) alone on a line leave no empty line behind, and line statements start with `%%`
-(inja's default `##` is a Markdown heading).
-
-```
-{% for day in days %}
-{% if day.has_rule %}
-{{ day.date }} {{ day.weekday_name }}: {{ day.data }}
-{% endif %}
-{% endfor %}
-```
+Templates get the calendar as JSON (`calendar_to_json()`): `year`, `offset_days`, `pascha`
+(`YYYY-MM-DD`), all `days` and the `months` (`number`, `name`, `rule_count`, `days`). A day has
+`date` (`YYYY-MM-DD`), `year`, `month`, `day`, `weekday` (1 = Monday .. 7 = Sunday),
+`weekday_name`, `has_rule` and `data` (empty without a rule). Besides the inja built-ins there is
+`escape_markdown(text)`, which backslash-escapes everything that has a meaning in Markdown
+(newlines become `<br>`). Blocks (`{% ... %}`) alone on a line leave no empty line behind, and line
+statements start with `%%` (inja's default `##` is a Markdown heading).
 
 ## Usage
 
