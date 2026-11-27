@@ -2,6 +2,9 @@
 
 #include <array>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string_view>
 
 #include <inja/inja.hpp>
@@ -104,6 +107,17 @@ std::string render_template(const YearCalendar& calendar,
   } catch (const nlohmann::json::exception& e) {
     throw TemplateError(e.what());
   }
+}
+
+TemplateBackend::TemplateBackend(const std::string& template_dir,
+                                 const std::string& template_file) {
+  const auto path = (std::filesystem::path(template_dir) / template_file).string();
+  std::ifstream in(path);
+  if (!in || !std::filesystem::is_regular_file(path))
+    throw TemplateFileError("cannot read template " + path);
+  std::stringstream ss;
+  ss << in.rdbuf();
+  template_ = ss.str();
 }
 
 }  // namespace bcal

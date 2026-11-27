@@ -20,6 +20,11 @@ class TemplateError : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
+// The template file of a backend cannot be read.
+class TemplateFileError : public TemplateError {
+  using TemplateError::TemplateError;
+};
+
 // Escapes text for Markdown: every character that has a meaning there
 // (\ ` * _ { } [ ] ( ) < > # + - . ! | ~ &) gets a backslash, so the text is
 // shown literally, also in a table cell. Newlines become <br>.
@@ -33,5 +38,29 @@ std::string escape_markdown(const std::string& text);
 // Throws TemplateError if the template is invalid or cannot be rendered.
 std::string render_template(const YearCalendar& calendar,
                             const std::string& template_text);
+
+// A backend turns a YearCalendar into text with an inja template that it reads
+// from a template directory. Throws TemplateFileError if the file cannot be
+// read; render() throws TemplateError (see render_template()).
+class TemplateBackend {
+ public:
+  TemplateBackend(const std::string& template_dir,
+                  const std::string& template_file);
+
+  std::string render(const YearCalendar& calendar) const {
+    return render_template(calendar, template_);
+  }
+
+ private:
+  std::string template_;
+};
+
+// The Markdown backend, by default with the template markdown.inja.
+class MarkdownBackend : public TemplateBackend {
+ public:
+  explicit MarkdownBackend(const std::string& template_dir,
+                           const std::string& template_file = "markdown.inja")
+      : TemplateBackend(template_dir, template_file) {}
+};
 
 }  // namespace bcal

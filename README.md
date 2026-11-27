@@ -79,7 +79,7 @@ cmake --install build
 
 The program goes to `<prefix>/bin` and the templates in `tpl/` to
 `<prefix>/lib/byzantine-cal/tpl`. The program looks for its Markdown template there
-(`/usr/local/lib/byzantine-cal/tpl/markdown.md.inja` by default), so the prefix has to be
+(`/usr/local/lib/byzantine-cal/tpl/markdown.inja` by default), so the prefix has to be
 set when configuring, not when installing.
 
 ## Year calendar
@@ -118,10 +118,16 @@ for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 ## Template backends
 
 The output is produced by a backend that works on the `YearCalendar`
-(`src/template_backend.h`). A backend is an [inja](https://github.com/pantor/inja) template,
-so a new output format (HTML, ICS, ...) is just another template. The Markdown backend is
-`tpl/markdown.md.inja`; it is installed with the program and used unless `--template` names
-another one (see [Install](#install)).
+(`src/template_backend.h`). A backend reads an [inja](https://github.com/pantor/inja) template
+from the template directory and renders the calendar with it, so a new output format (HTML, ICS,
+...) is just another template with its own backend class. `MarkdownBackend` uses the template
+`markdown.inja` by default (a constructor parameter); the file is `tpl/markdown.inja` and is
+installed with the program (see [Install](#install)).
+
+```cpp
+bcal::MarkdownBackend backend("/usr/local/lib/byzantine-cal/tpl");   // markdown.inja
+std::string text = backend.render(calendar);   // TemplateFileError / TemplateError on failure
+```
 
 `calendar_to_json()` hands the calendar to the template as JSON (nlohmann_json):
 
@@ -150,17 +156,16 @@ Besides the inja built-ins the functions `replace(text, from, to)` and `escape_m
 ## Usage
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--old] [--template=<file>] [--output=<file>]] <yaml_file>
+byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>]] <yaml_file>
 ```
 
 Without `--year` the file is only checked. With `--year` the calendar of that year is
-generated and rendered with a template, as Markdown unless `--template` names another one;
-the result goes to stdout or to the file given by `--output`:
+generated and rendered as Markdown; the result goes to stdout or to the file given by `--output`:
 
 ```bash
 byzantine-cal --year=2026 calendar.yml > calendar.md
 byzantine-cal --year=2026 --old calendar.yml           # old calendar: 25.12. -> 7 January
-byzantine-cal --year=2026 --template=my.html.inja --output=2026.html calendar.yml
+byzantine-cal --year=2026 --output=2026.md calendar.yml
 ```
 
-Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` file unreadable (or a directory), `3` wrong command line.
+Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout), `3` wrong command line.

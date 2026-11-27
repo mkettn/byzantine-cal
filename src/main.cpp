@@ -5,10 +5,8 @@
 
 #include <charconv>
 #include <cstdio>
-#include <filesystem>
 #include <fstream>
 #include <map>
-#include <sstream>
 #include <string>
 
 #include <yaml-cpp/yaml.h>
@@ -23,23 +21,13 @@ static bool parse_int(const std::string& text, int& out) {
   return ec == std::errc() && ptr == text.data() + text.size();
 }
 
-// Reads a whole file; false if it is not a readable regular file.
-static bool read_file(const std::string& path, std::string& out) {
-  std::ifstream in(path);
-  if (!in || !std::filesystem::is_regular_file(path)) return false;
-  std::stringstream ss;
-  ss << in.rdbuf();
-  out = ss.str();
-  return true;
-}
-
 static const char USAGE[] = R"(byzantine-cal - check a fasting calendar file and generate the calendar of a year.
 
 Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--template=<file>] [--output=<file>]]
+  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>]]
                 <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
@@ -48,21 +36,18 @@ Options:
   -v --verbose  Show debug output.
   -q --quiet    Only show errors.
   -y <year>, --year=<year>
-                Generate the calendar of this year and render it with a
-                template (Markdown unless --template is given).
+                Generate the calendar of this year and render it as
+                Markdown.
   --old         Old (Julian) calendar: shift all fixed (DD.MM) dates by
                 13 days, e.g. 25.12 becomes 7 January. Pascha dates are
                 not shifted. Needs --year.
-  -t <file>, --template=<file>
-                Render with this inja template instead of the Markdown
-                one from the installed tpl directory. Needs --year.
   -o <file>, --output=<file>
                 Write the result to this file instead of stdout.
                 Needs --year.
   -h --help     Show this help.
   --version     Show version.
 
-Exit status: 0 = valid, 1 = invalid, 2 = file could not be read,
+Exit status: 0 = valid, 1 = invalid, 2 = a file could not be read or written,
 3 = wrong command line.
 )";
 
@@ -94,10 +79,9 @@ int main(int argc, char** argv) {
   const bool generate = static_cast<bool>(args["--year"]);
   if (generate ? !parse_int(args["--year"].asString(), year) ||
                      year < bcal::kMinYear || year > bcal::kMaxYear
-               : args["--old"].asBool() || args["--template"] ||
-                     args["--output"]) {
+               : args["--old"].asBool() || args["--output"]) {
     std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old, --template and --output need --year\n");
+                                  : "--old and --output need --year\n");
     return 3;
   }
   const int offset_days =
@@ -130,33 +114,30 @@ int main(int argc, char** argv) {
 
   if (!generate) return 0;
 
-  const std::string tpl_path = args["--template"]
-                                   ? args["--template"].asString()
-                                   : std::string(BCAL_TPL_DIR) + "/markdown.md.inja";
-  std::string tpl;
-  if (!read_file(tpl_path, tpl)) {
-    spdlog::error("cannot read template {}", tpl_path);
-    return 2;
-  }
-
   std::string text;
   try {
-    text = bcal::render_template(
-        bcal::load_year_calendar(root, year, offset_days), tpl);
+    const bcal::MarkdownBackend backend(BCAL_TPL_DIR);
+    text = backend.render(bcal::load_year_calendar(root, year, offset_days));
+  } catch (const bcal::TemplateFileError& e) {
+    spdlog::error("{}", e.what());
+    return 2;
   } catch (const bcal::TemplateError& e) {
     spdlog::error("template error: {}", e.what());
     return 1;
   }
 
+  // Any failure to write is an error, also one that only shows when flushing.
+  bool written;
   if (args["--output"]) {
     const auto out_path = args["--output"].asString();
     std::ofstream out(out_path);
-    if (!(out << text)) {
-      spdlog::error("cannot write {}", out_path);
-      return 2;
-    }
+    out << text;
+    out.close();
+    written = !out.fail();
+    if (!written) spdlog::error("cannot write {}", out_path);
   } else {
-    std::fputs(text.c_str(), stdout);
+    written = std::fputs(text.c_str(), stdout) >= 0 && std::fflush(stdout) == 0;
+    if (!written) spdlog::error("cannot write to stdout");
   }
-  return 0;
+  return written ? 0 : 2;
 }

@@ -237,6 +237,22 @@ int main() {
     CHECK(throws<bcal::TemplateError>([&] { render("{{ no_such_value }}"); }));
   }
 
+  // --- backends read their template from a directory
+  {
+    bcal::YearCalendar c(2026, 13);
+    c.add_day(D("25.12"), "Nativity|x");
+    CHECK(bcal::TemplateBackend(BCAL_TEST_TPL_DIR, "list.txt.inja").render(c) == "2026-01-07;3;Nativity|x\n");
+    const auto md = bcal::MarkdownBackend(BCAL_TPL_DIR).render(c);   // default template markdown.inja
+    CHECK(md.find("# 2026\n\nPascha: 2026-04-12\n\n## January\n") == 0);
+    CHECK(md.find("| 2026-01-07 | Wednesday | Nativity\\|x |\n") != std::string::npos);
+    CHECK(md.find("## February") == std::string::npos);            // no rules: no table
+    CHECK(throws<bcal::TemplateFileError>([] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR, "nope.inja"); }));
+    CHECK(throws<bcal::TemplateFileError>([] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR, "."); }));
+    CHECK(throws<bcal::TemplateFileError>([] { bcal::MarkdownBackend("/no/such/dir"); }));
+    CHECK(throws<bcal::TemplateError>([&] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR, "broken.inja").render(c); }));
+    CHECK(throws<bcal::TemplateError>([&] { bcal::TemplateBackend(BCAL_TEST_TPL_DIR, "unknown.inja").render(c); }));
+  }
+
   // --- invalid input / parameters
   CHECK(throws<std::invalid_argument>([] { cal("- \"31.04\": x\n", 2026); }));
   for (int bad : {0, 10000}) CHECK(throws<std::invalid_argument>([&] { cal("[]", bad); }));
