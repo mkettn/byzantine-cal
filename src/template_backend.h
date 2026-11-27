@@ -5,17 +5,20 @@
 
 #include <nlohmann/json.hpp>
 
+#include "language.h"
 #include "year_calendar.h"
 
 namespace bcal {
 
 // The calendar as handed to templates:
 //   year, offset_days, pascha ("YYYY-MM-DD"),
+//   ui:     the texts of the language ({date: "Date", ...})
 //   days:   [{date ("YYYY-MM-DD"), year, month, day, weekday (1 = Monday ..
 //             7 = Sunday), weekday_name, has_rule, data}]
 //             (data is "" for days without a rule)
 //   months: [{number, name, rule_count, days: [...same as above...]}]
-nlohmann::json calendar_to_json(const YearCalendar& calendar);
+// Month and weekday names are those of `language`.
+nlohmann::json calendar_to_json(const YearCalendar& calendar, const Language& language);
 
 class TemplateError : public std::runtime_error {
   using std::runtime_error::runtime_error;
@@ -36,7 +39,7 @@ std::string escape_markdown(const std::string& text);
 // on a line leave no empty line behind; line statements start with "%%" (inja's
 // default "##" is a Markdown heading). Throws TemplateError if the template is
 // invalid or cannot be rendered, for whatever reason.
-std::string render_template(const YearCalendar& calendar,
+std::string render_template(const YearCalendar& calendar, const Language& language,
                             const std::string& template_text);
 
 // A backend turns a YearCalendar into text with an inja template that it reads
@@ -46,8 +49,8 @@ class TemplateBackend {
  public:
   explicit TemplateBackend(const std::filesystem::path& template_path);
 
-  std::string render(const YearCalendar& calendar) const {
-    return render_template(calendar, template_);
+  std::string render(const YearCalendar& calendar, const Language& language) const {
+    return render_template(calendar, language, template_);
   }
 
  private:

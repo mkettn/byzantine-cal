@@ -1,6 +1,5 @@
 #include "template_backend.h"
 
-#include <array>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -13,13 +12,7 @@ namespace bcal {
 
 namespace {
 
-constexpr std::array<const char*, 12> kMonths = {
-    "January", "February", "March",     "April",   "May",      "June",
-    "July",    "August",   "September", "October", "November", "December"};
-constexpr std::array<const char*, 7> kWeekdays = {
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
-
-nlohmann::json day_to_json(const CalendarDay& d) {
+nlohmann::json day_to_json(const CalendarDay& d, const Language& language) {
   const int y = static_cast<int>(d.date.year());
   const unsigned m = static_cast<unsigned>(d.date.month());
   const unsigned dd = static_cast<unsigned>(d.date.day());
@@ -31,7 +24,7 @@ nlohmann::json day_to_json(const CalendarDay& d) {
           {"month", m},
           {"day", dd},
           {"weekday", weekday},
-          {"weekday_name", kWeekdays[static_cast<std::size_t>(weekday - 1)]},
+          {"weekday_name", language.weekday(static_cast<unsigned>(weekday))},
           {"has_rule", d.has_rule()},
           {"data", d.data.value_or("")}};
 }
@@ -53,17 +46,17 @@ std::string escape_markdown(const std::string& text) {
   return out;
 }
 
-nlohmann::json calendar_to_json(const YearCalendar& calendar) {
+nlohmann::json calendar_to_json(const YearCalendar& calendar, const Language& language) {
   nlohmann::json days = nlohmann::json::array();
   nlohmann::json months = nlohmann::json::array();
-  for (std::size_t m = 0; m < kMonths.size(); ++m)
-    months.push_back({{"number", m + 1},
-                      {"name", kMonths[m]},
+  for (unsigned m = 1; m <= 12; ++m)
+    months.push_back({{"number", m},
+                      {"name", language.month(m)},
                       {"rule_count", 0},
                       {"days", nlohmann::json::array()}});
 
   for (const auto& d : calendar) {
-    auto j = day_to_json(d);
+    auto j = day_to_json(d, language);
     auto& month = months[static_cast<unsigned>(d.date.month()) - 1];
     month["days"].push_back(j);
     if (d.has_rule()) month["rule_count"] = month["rule_count"].get<int>() + 1;
@@ -71,12 +64,13 @@ nlohmann::json calendar_to_json(const YearCalendar& calendar) {
   }
   return {{"year", calendar.year()},
           {"offset_days", calendar.offset_days()},
-          {"pascha", day_to_json({calendar.pascha(), std::nullopt})["date"]},
+          {"pascha", day_to_json({calendar.pascha(), std::nullopt}, language)["date"]},
+          {"ui", language.ui()},
           {"days", std::move(days)},
           {"months", std::move(months)}};
 }
 
-std::string render_template(const YearCalendar& calendar,
+std::string render_template(const YearCalendar& calendar, const Language& language,
                             const std::string& template_text) {
   try {
     inja::Environment env;
@@ -86,7 +80,7 @@ std::string render_template(const YearCalendar& calendar,
     env.add_callback("escape_markdown", 1, [](inja::Arguments& args) {
       return escape_markdown(args.at(0)->get<std::string>());
     });
-    return env.render(template_text, calendar_to_json(calendar));
+    return env.render(template_text, calendar_to_json(calendar, language));
   } catch (const std::exception& e) {
     // Invalid templates (inja::InjaError), JSON errors and anything a template
     // can cause, such as running out of memory with range(99999999999).

@@ -1,12 +1,12 @@
 # {{ year }}
 
-Pascha: {{ pascha }}
+{{ ui.pascha }}: {{ pascha }}
 {% for month in months %}
 {% if month.rule_count > 0 %}
 
 ## {{ month.name }}
 
-| Date | Weekday | Data |
+| {{ ui.date }} | {{ ui.weekday }} | {{ ui.data }} |
 |------|---------|------|
 {% for day in month.days %}
 {% if day.has_rule %}

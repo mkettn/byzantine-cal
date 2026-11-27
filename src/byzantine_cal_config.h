@@ -23,6 +23,8 @@ class ConfigFileError : public ConfigError {
 //     - /usr/share/tpl   # absolute, or
 //     - tpl              # relative to the directory of the configuration file
 //                        # (the directory of the given path, symlinks are not followed)
+//   lang_dir: [lang]     # directories to look for language files (de_DE.yaml, ...), same rules
+//   language: de_DE      # the language to use (a locale name without codeset)
 //
 // Unknown options, an option that is set twice and several YAML documents are
 // an error.
@@ -49,6 +51,15 @@ class ByzantineCalConfig {
     return template_dirs_;
   }
 
+  // The language to use if the configuration sets one (a valid locale name).
+  const std::optional<std::string>& language() const { return language_; }
+
+  // The language files for `locale` (see locale_names()), most specific first:
+  // for each name the first lang_dir that has <name>.yaml; names without a file
+  // are left out, except "en", which must exist. Throws ConfigFileError if it
+  // does not and ConfigError for an invalid locale.
+  std::vector<std::filesystem::path> find_language_files(const std::string& locale) const;
+
   // The path of the template file `name` in the first template directory that
   // has it, ready to be given to a template backend. Throws ConfigFileError if
   // no directory has it.
@@ -57,6 +68,8 @@ class ByzantineCalConfig {
  private:
   std::filesystem::path file_;
   std::vector<std::filesystem::path> template_dirs_;
+  std::vector<std::filesystem::path> lang_dirs_;
+  std::optional<std::string> language_;
 };
 
 }  // namespace bcal

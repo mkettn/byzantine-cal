@@ -77,8 +77,9 @@ cmake --build build -j
 cmake --install build
 ```
 
-The program goes to `<prefix>/bin`, the configuration `config/config.yaml` and the templates in
-`tpl/` to `<prefix>/lib/byzantine-cal` (`/usr/local/lib/byzantine-cal/config.yaml` by default).
+The program goes to `<prefix>/bin`, the configuration `config/config.yaml`, the templates in `tpl/`
+and the language files in `lang/` to `<prefix>/lib/byzantine-cal`
+(`/usr/local/lib/byzantine-cal/config.yaml` by default).
 The prefix is compiled in, so it has to be set when configuring, not when installing.
 
 ## Configuration
@@ -89,6 +90,8 @@ The configuration is read from a YAML file (`ByzantineCalConfig`, `src/byzantine
 template_dir:          # directories to look for templates, in this order
   - /usr/share/tpl     # an absolute name, or
   - tpl                # a name relative to the directory of this file
+lang_dir: [lang]       # directories to look for language files, the same way
+language: de_DE        # the language to use (optional, see Languages)
 ```
 
 Relative names are relative to the directory of the path the file is given by (a symlink is not
@@ -98,7 +101,37 @@ followed). Unknown options, an option that is set twice and several YAML documen
 2. `bcal.yaml` in the current directory (if there is something with that name it is used, and
    reported if it cannot be read),
 3. `config.yaml` in the installation directory (`/usr/local/lib/byzantine-cal/config.yaml`),
-   which names the installed `tpl` directory.
+   which names the installed `tpl` and `lang` directories.
+
+## Languages
+
+Month and weekday names and the texts of the templates (table headings) come from language files,
+YAML files named after a locale in a `lang_dir` of the [configuration](#configuration). `lang/en.yaml`:
+
+```yaml
+months: [January, ..., December]     # 12 names
+weekdays: [Monday, ..., Sunday]      # 7 names, Monday first
+ui:                                  # texts for the templates, available as `ui.date` etc.
+  date: Date
+  weekday: Weekday
+  data: Data
+  pascha: Pascha
+```
+
+A language is a locale name as for `setlocale()` **without the codeset** (`.UTF-8` is implied,
+and ignored if given), e.g. `de_DE` or `de`. For `de_DE` the files `de_DE.yaml`, `de.yaml` and
+`en.yaml` are looked for, in this order, in the `lang_dir`s. Every key is optional in a file and
+is taken from the next file if it is missing, so `de_AT.yaml` only has to hold what differs from
+`de.yaml` (see `lang/`), and a language without a file of its own is English. `en.yaml` has to
+exist. The calendar file itself is not translated: names and other data are printed as written.
+
+The language is, in this order:
+
+1. `--lang=<locale>`,
+2. `language:` in the configuration,
+3. the environment: the first one set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C` and `POSIX`
+   mean no language, as does a value that is not a locale name),
+4. `en`.
 
 ## Year calendar
 
@@ -150,7 +183,8 @@ std::string text = backend.render(calendar);   // TemplateFileError / TemplateEr
 Templates get the calendar as JSON (`calendar_to_json()`): `year`, `offset_days`, `pascha`
 (`YYYY-MM-DD`), all `days` and the `months` (`number`, `name`, `rule_count`, `days`). A day has
 `date` (`YYYY-MM-DD`), `year`, `month`, `day`, `weekday` (1 = Monday .. 7 = Sunday),
-`weekday_name`, `has_rule` and `data` (empty without a rule). Besides the inja built-ins there is
+`weekday_name`, `has_rule` and `data` (empty without a rule). `name` and `weekday_name` are in the
+language, and `ui` holds its texts. Besides the inja built-ins there is
 `escape_markdown(text)`, which backslash-escapes everything that has a meaning in Markdown
 (newlines become `<br>`). Blocks (`{% ... %}`) alone on a line leave no empty line behind, and line
 statements start with `%%` (inja's default `##` is a Markdown heading).
@@ -158,7 +192,7 @@ statements start with `%%` (inja's default `##` is a Markdown heading).
 ## Usage
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]] <yaml_file>
+byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>] [--lang=<locale>]] <yaml_file>
 ```
 
 Without `--year` the file is only checked. With `--year` the calendar of that year is
@@ -170,6 +204,7 @@ byzantine-cal --year=2026 calendar.yml > calendar.md
 byzantine-cal --year=2026 --old calendar.yml           # old calendar: 25.12. -> 7 January
 byzantine-cal --year=2026 --output=2026.md calendar.yml
 byzantine-cal --year=2026 -C my-config.yaml calendar.yml
+byzantine-cal --year=2026 --lang=de_DE calendar.yml     # German month and weekday names
 ```
 
-Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file or template is found, `3` wrong command line.
+Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file, template or `en.yaml` is found, `3` wrong command line.
