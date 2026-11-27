@@ -38,8 +38,7 @@ std::optional<sys_days> resolve(const Day& d, int base_year, int offset,
     if (!ymd.ok()) return std::nullopt;
     return sys_days{ymd} + days{offset};
   }
-  if (base_year < kPaschaMinYear || base_year > kPaschaMaxYear)
-    return std::nullopt;
+  if (base_year < kMinYear || base_year > kMaxYear) return std::nullopt;
   sys_days r = sys_days{orthodox_pascha(base_year)} + days{d.offset_days};
   if (d.next_weekday) {
     while (weekday_index(r) != *d.next_weekday) r += days{1};
@@ -54,7 +53,7 @@ std::optional<sys_days> resolve(const Day& d, int base_year, int offset,
 YearCalendar::YearCalendar(const YAML::Node& root, int year, int offset_days)
     : year_(year), offset_days_(offset_days) {
   if (year < kMinYear || year > kMaxYear)
-    throw std::invalid_argument("year must be in 2026..2099");
+    throw std::invalid_argument("year must be in 1..9999");
   if (offset_days < -365 || offset_days > 365)
     throw std::invalid_argument("offset must be within +-365 days");
 

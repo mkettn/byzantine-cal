@@ -4,19 +4,16 @@
 namespace bcal {
 
 // Difference between the Gregorian and the Julian calendar in days. It is
-// 13 from 1 March 1900 to 28 February 2100, which is the range supported here.
+// exactly 13 from 1 March 1900 to 28 February 2100 and used for all years;
+// outside that range results may be off by some days.
 inline constexpr int kJulianGregorianOffsetDays = 13;
 
-// Years for which orthodox_pascha() is supported (the range of the constant).
-inline constexpr int kPaschaMinYear = 1900;
-inline constexpr int kPaschaMaxYear = 2099;
-
-// Calendars are generated for these years.
-inline constexpr int kMinYear = 2026;
-inline constexpr int kMaxYear = kPaschaMaxYear;
+// Years that are accepted (anything the arithmetic can handle).
+inline constexpr int kMinYear = 1;
+inline constexpr int kMaxYear = 9999;
 
 // Date of Orthodox Pascha (Easter) in the Gregorian calendar.
-// Throws std::out_of_range for years outside kPaschaMinYear..kPaschaMaxYear.
+// Throws std::out_of_range for years outside kMinYear..kMaxYear.
 std::chrono::year_month_day orthodox_pascha(int year);
 
 }  // namespace bcal

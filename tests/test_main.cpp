@@ -70,10 +70,11 @@ int main() {
   CHECK(is_pascha(2026, 4, 12));
   CHECK(is_pascha(2027, 5, 2));
   CHECK(is_pascha(2028, 4, 16));
+  CHECK(is_pascha(2012, 4, 15));
   {
     bool lo = false, hi = false;
-    try { bcal::orthodox_pascha(1899); } catch (const std::out_of_range&) { lo = true; }
-    try { bcal::orthodox_pascha(2100); } catch (const std::out_of_range&) { hi = true; }
+    try { bcal::orthodox_pascha(0); } catch (const std::out_of_range&) { lo = true; }
+    try { bcal::orthodox_pascha(10000); } catch (const std::out_of_range&) { hi = true; }
     CHECK(lo && hi);
   }
 
@@ -138,11 +139,13 @@ int main() {
     CHECK(data_at(cf, 3, 1) == "X");
   }
 
-  // --- first / last supported year: fixed dates still leap in from outside
+  // --- any year, also at the ends: fixed dates still leap in from outside
   {
-    auto c = cal("- \"25.12\": Nativity\n- \"p\": P\n", 2026, 13);
-    CHECK(data_at(c, 1, 7) == "Nativity");
-    auto e = cal("- \"05.01\": X\n", 2099, -10);   // 05.01.2100 - 10
+    auto c = cal("- \"25.12\": Nativity\n- \"p\": P\n", 2012, 13);
+    CHECK(data_at(c, 1, 7) == "Nativity" && data_at(c, 4, 15) == "P");
+    auto first = cal("- \"25.12\": N\n", 1, 13);           // 25.12.0 + 13
+    CHECK(data_at(first, 1, 7) == "N");
+    auto e = cal("- \"05.01\": X\n", 9999, -10);          // 05.01.10000 - 10
     CHECK(data_at(e, 12, 26) == "X");
   }
 
@@ -218,9 +221,10 @@ int main() {
       return false;
     };
     CHECK(throws("- \"31.04\": x\n", 2026, 0));
-    CHECK(throws("[]", 2025, 0));
-    CHECK(throws("[]", 2100, 0));
-    CHECK(!throws("[]", 2026, 0) && !throws("[]", 2099, 0));
+    CHECK(throws("[]", 0, 0));
+    CHECK(throws("[]", 10000, 0));
+    CHECK(!throws("[]", 1, 0) && !throws("[]", 9999, 0));
+    CHECK(!throws("[]", 2012, 0) && !throws("[]", 2100, 0));
     CHECK(throws("[]", 2026, 366));
     CHECK(throws("[]", 2026, -366));
     CHECK(!throws("[]", 2026, 365));
