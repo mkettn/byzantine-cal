@@ -119,13 +119,13 @@ for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 
 The output is produced by a backend that works on the `YearCalendar`
 (`src/template_backend.h`). A backend reads an [inja](https://github.com/pantor/inja) template
-from the template directory and renders the calendar with it, so a new output format (HTML, ICS,
-...) is just another template with its own backend class. `MarkdownBackend` uses the template
-`markdown.inja` by default (a constructor parameter); the file is `tpl/markdown.inja` and is
-installed with the program (see [Install](#install)).
+from a file and renders the calendar with it, so a new output format (HTML, ICS, ...) is just
+another template with its own backend class. The constructor takes the path of the template file.
+The template of `MarkdownBackend` is `markdown.inja` (`MarkdownBackend::kTemplateFile`); it is
+`tpl/markdown.inja` in the sources and installed with the program (see [Install](#install)).
 
 ```cpp
-bcal::MarkdownBackend backend("/usr/local/lib/byzantine-cal/tpl");   // markdown.inja
+bcal::MarkdownBackend backend("/usr/local/lib/byzantine-cal/tpl/markdown.inja");
 std::string text = backend.render(calendar);   // TemplateFileError / TemplateError on failure
 ```
 

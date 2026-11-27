@@ -40,12 +40,11 @@ std::string render_template(const YearCalendar& calendar,
                             const std::string& template_text);
 
 // A backend turns a YearCalendar into text with an inja template that it reads
-// from a template directory. Throws TemplateFileError if the file cannot be
-// read; render() throws TemplateError (see render_template()).
+// from the given file. Throws TemplateFileError if the file cannot be read;
+// render() throws TemplateError (see render_template()).
 class TemplateBackend {
  public:
-  TemplateBackend(const std::string& template_dir,
-                  const std::string& template_file);
+  explicit TemplateBackend(const std::string& template_path);
 
   std::string render(const YearCalendar& calendar) const {
     return render_template(calendar, template_);
@@ -55,12 +54,14 @@ class TemplateBackend {
   std::string template_;
 };
 
-// The Markdown backend, by default with the template markdown.inja.
+// The Markdown backend. Its template is markdown.inja, to be looked for in the
+// directory the templates are installed to.
 class MarkdownBackend : public TemplateBackend {
  public:
-  explicit MarkdownBackend(const std::string& template_dir,
-                           const std::string& template_file = "markdown.inja")
-      : TemplateBackend(template_dir, template_file) {}
+  static constexpr const char* kTemplateFile = "markdown.inja";
+
+  explicit MarkdownBackend(const std::string& template_path)
+      : TemplateBackend(template_path) {}
 };
 
 }  // namespace bcal

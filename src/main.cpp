@@ -116,7 +116,8 @@ int main(int argc, char** argv) {
 
   std::string text;
   try {
-    const bcal::MarkdownBackend backend(BCAL_TPL_DIR);
+    const bcal::MarkdownBackend backend(std::string(BCAL_TPL_DIR) + "/" +
+                                        bcal::MarkdownBackend::kTemplateFile);
     text = backend.render(bcal::load_year_calendar(root, year, offset_days));
   } catch (const bcal::TemplateFileError& e) {
     spdlog::error("{}", e.what());
