@@ -125,12 +125,18 @@ int main() {
     auto c0 = cal(y, 2026);
     CHECK(data_at(c0, 12, 25) == "Nativity" && data_at(c0, 1, 7) == "-");
     auto c13 = cal(y, 2026, 13);
+    // Queries are Gregorian: the rule written for 25.12. is found on 7.1. with
+    // an offset of 13, and at(12, 25) holds whatever is written for 12.12.
     CHECK(data_at(c13, 1, 7) == "Nativity");   // 25.12.2025 + 13
     CHECK(data_at(c13, 12, 25) == "-");
     CHECK(data_at(c13, 1, 6) == "-");
     int hits = 0;
     for (const auto& d : c13) hits += d.has_rule();
     CHECK(hits == 1);                          // 25.12.2026 + 13 is in 2027
+    auto c12 = cal("- \"12.12\": Old\n- \"25.12\": New\n", 2026, 13);
+    CHECK(data_at(c12, 12, 25) == "Old");       // 12.12. + 13 = 25.12.
+    CHECK(data_at(c12, 1, 7) == "New");
+    CHECK(data_at(cal("- \"12.12\": Old\n- \"25.12\": New\n", 2026), 12, 25) == "New");
     auto cm = cal(y, 2026, -13);
     CHECK(data_at(cm, 12, 12) == "Nativity");
     // negative offset pulls dates of the next year back

@@ -26,6 +26,12 @@ struct CalendarDay {
 // The calendar of one year (1 January .. 31 December), generated from a
 // calendar document.
 //
+// All dates outside of this class are Gregorian: the dates passed to at(), the
+// dates of the CalendarDay values and the dates iterated over. Only the fixed
+// dates written in the calendar document are shifted by `offset_days`, so what
+// at(12, 25) returns depends on the offset: with 0 it is the rule written for
+// 25.12., with 13 it is the rule written for 12.12.
+//
 // Rules are applied in document order; where several rules apply to the same
 // day, the later one wins.
 //

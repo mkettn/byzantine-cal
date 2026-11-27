@@ -83,6 +83,10 @@ if (d.has_rule()) std::cout << *d.data;
 for (const bcal::CalendarDay& day : cal) { /* 365 or 366 days, in order */ }
 ```
 
+- All dates outside the class are Gregorian: the dates passed to `at()`, the dates of the
+  returned days and the dates printed by the command line. Only the fixed dates written in the
+  file are shifted by `offset_days`, so `at(12, 25)` returns different data depending on the
+  offset: the rule written for 25.12. with 0, the rule written for 12.12. with 13.
 - Rules are applied in file order; where several apply to a day, the later one wins.
 - `offset_days` is added to every fixed (`DD.MM`) date and leaps over year boundaries.
   The command line option `--old` sets it to 13 (old calendar): 25.12. of the previous year falls on 7 January. Pascha-relative
