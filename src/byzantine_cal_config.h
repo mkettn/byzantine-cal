@@ -36,7 +36,7 @@ std::string location(const std::filesystem::path& file, const YAML::Node& node);
 //     - tpl              # relative to the directory of the configuration file
 //                        # (the directory of the given path, symlinks are not followed)
 //   lang_dir: [lang]     # directories to look for language files (de_DE.yaml, ...), same rules
-//   language: de_DE      # the language to use (a locale name without codeset)
+//   language: de_DE      # the language to use (a name like de_DE)
 //
 // Unknown options, an option that is set twice and several YAML documents are
 // an error.
@@ -63,12 +63,12 @@ class ByzantineCalConfig {
     return template_dirs_;
   }
 
-  // The language to use if the configuration sets one (a valid locale name).
+  // The language to use if the configuration sets one (a valid language name).
   const std::optional<std::string>& language() const { return language_; }
 
   // The language file for `locale`: for the names of locale_names() in order
   // ("de_DE", "de"), the first lang_dir that has <name>.yaml. Throws
-  // ConfigFileError if there is none and ConfigError for an invalid locale.
+  // ConfigFileError if there is none and ConfigError for an invalid name.
   std::filesystem::path find_language_file(const std::string& locale) const;
 
   // The path of the template file `name` in the first template directory that

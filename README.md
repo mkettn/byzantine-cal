@@ -114,9 +114,11 @@ weekdays: [Monday, ..., Sunday]      # 7 names, Monday first
 ui: {date: Date, weekday: Weekday, data: Data, pascha: Pascha}   # texts for templates: `ui.date` etc.
 ```
 
-A language is a locale name as for `setlocale()` **without the codeset** (`.UTF-8` is implied and
-ignored if given), e.g. `de_DE` or `de`. The file of a language is the first of `de_DE.yaml` and
-`de.yaml` that exists; if there is none, it is `en.yaml`. Every key is optional in a file, and a file
+A language is a name that is safe in a file name (letters, digits, `_` and `-`). Names like
+`de_DE` are only a convention, taken from `setlocale()`, so `.UTF-8` is implied and ignored if
+given: any name works, and `--lang=foo_BAR` uses `foo_BAR.yaml` if there is one. The file of a
+language is the first that exists of the name and the name shortened at its last `_`, step by step
+(`de_DE.yaml`, `de.yaml`); if there is none, it is `en.yaml`. Every key is optional in a file, and a file
 can name a **fallback** language:
 
 ```yaml
@@ -132,7 +134,7 @@ and weekdays have to be there at the end. The Markdown template escapes the text
 file itself is not translated, its names and data are printed as written.
 
 The language is, in this order: `--lang=<locale>`, `language:` in the configuration, the first one
-set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C`, `POSIX` and values that are no locale name mean
+set of `LC_ALL`, `LC_MESSAGES` and `LANG` (`C`, `POSIX` and values that are no valid name mean
 English), `en`.
 
 ## Year calendar

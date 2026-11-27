@@ -1,0 +1,5 @@
+template_dir:
+  - ../../tpl
+lang_dir:
+  - ../../lang
+  - ../lang-custom

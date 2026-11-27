@@ -80,7 +80,7 @@ ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
       lang_dirs_ = dirs_of(option.second, "lang_dir");
     } else {
       if (!option.second.IsScalar() || option.second.Scalar().empty())
-        throw ConfigError(location(file, option.second) + "language must be a locale name like de_DE");
+        throw ConfigError(location(file, option.second) + "language must be a language name like de_DE");
       try {
         locale_names(option.second.Scalar());
       } catch (const ConfigError& e) {

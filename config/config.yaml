@@ -2,7 +2,7 @@
 #
 # template_dir: directories to look for templates, in this order.
 # lang_dir:     directories to look for language files (de_DE.yaml, de.yaml, ...).
-# language:     the language to use, a locale name like de_DE (optional; the
+# language:     the language to use, a name like de_DE (optional; the
 #               default is that of the environment: LC_ALL, LC_MESSAGES, LANG).
 #
 # Names are absolute or relative to the directory of this file.

@@ -31,7 +31,7 @@ and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
   byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]
-                [--lang=<locale>]]
+                [--lang=<language>]]
                 <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
@@ -48,9 +48,9 @@ Options:
   -o <file>, --output=<file>
                 Write the result to this file instead of stdout.
                 Needs --year.
-  -l <locale>, --lang=<locale>
-                Language of month and weekday names, a locale name such as
-                de_DE or de (without codeset). Default: the language in the
+  -l <language>, --lang=<language>
+                Language of month and weekday names, a language name such as
+                de_DE or de (the name of a language file). Default: the language in the
                 configuration, else LC_ALL, LC_MESSAGES or LANG, else en.
                 Needs --year.
   -C <file>     Configuration file (it names the template and language
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
       args["--lang"] ? std::optional<std::string>(args["--lang"].asString()) : std::nullopt;
   if (lang_from_cli) {
     try {
-      if (lang_from_cli->empty()) throw bcal::ConfigError("--lang needs a locale name such as de_DE");
+      if (lang_from_cli->empty()) throw bcal::ConfigError("--lang needs a language name such as de_DE");
       bcal::locale_names(*lang_from_cli);
     } catch (const bcal::ConfigError& e) {
       std::fprintf(stderr, "%s\n", e.what());

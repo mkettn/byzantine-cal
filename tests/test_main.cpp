@@ -349,7 +349,7 @@ int main() {
                             "template_dir: ['']\n", "template_dirs: [a]\n", "template_dir: [a]\nx: 1\n",
                             "template_dir: [a\n", "template_dir: [a]\ntemplate_dir: [b]\n",
                             "template_dir: [a]\n---\ntemplate_dir: [b]\n", "lang_dir: lang\n", "lang_dir: [[a]]\n",
-                            "lang_dir: [a]\nlang_dir: [b]\n", "language: de-DE\n", "language: [de]\n", "language: ''\n",
+                            "lang_dir: [a]\nlang_dir: [b]\n", "language: ../x\n", "language: [de]\n", "language: ''\n",
                             "language: de_DE\nlanguage: en\n"})
       CHECK(kind(bad) == 1);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig(dir / "nope.yaml"); }));
@@ -373,9 +373,12 @@ int main() {
     CHECK(lc.find_language_file("de_AT") == dir / "b/lang/de_AT.yaml");
     CHECK(lc.find_language_file("de_DE.UTF-8") == dir / "a/lang/de.yaml");   // no de_DE: de, in the first dir that has it
     CHECK(lc.find_language_file("en") == dir / "a/lang/en.yaml");
+    write("b/lang/foo_BAR.yaml", "");   // any name: foo_BAR.yaml, or else foo.yaml
+    write("a/lang/foo.yaml", "");
+    CHECK(lc.find_language_file("foo_BAR") == dir / "b/lang/foo_BAR.yaml" && lc.find_language_file("foo_XX") == dir / "a/lang/foo.yaml");
     CHECK(throws<bcal::ConfigFileError>([&] { lc.find_language_file("fr_FR"); }));
     CHECK(throws<bcal::ConfigFileError>([&] { c.find_language_file("de"); }));        // no lang_dir
-    CHECK(throws<bcal::ConfigError>([&] { lc.find_language_file("de-DE"); }));
+    CHECK(throws<bcal::ConfigError>([&] { lc.find_language_file("../x"); }));
     CHECK(bcal::ByzantineCalConfig(write("o.yaml", "language: de_DE.UTF-8\n")).language() == "de_DE.UTF-8");
 
     // which file: -C, else bcal.yaml in the working directory, else the installed one
@@ -406,8 +409,9 @@ int main() {
     for (const char* german : {"de_DE", "de_DE.UTF-8", "de_DE.UTF-8@euro"})   // the codeset is implied
       CHECK(bcal::locale_names(german) == V({"de_DE", "de"}));
     CHECK(bcal::locale_names("de") == V({"de"}) && bcal::locale_names("en_US") == V({"en_US", "en"}));
+    CHECK(bcal::locale_names("foo_BAR") == V({"foo_BAR", "foo"}) && bcal::locale_names("a_b_c-d") == V({"a_b_c-d", "a_b", "a"}));   // any name
     for (const char* none : {"", "C", "POSIX", "C.UTF-8", "en"}) CHECK(bcal::locale_names(none) == V({"en"}));
-    for (const char* bad : {"de-DE", "de_de", "DE", "de_DEU", "../x", "de DE", ".UTF-8", "@euro", "C_DE"})
+    for (const char* bad : {"../x", "de DE", "de/DE", ".UTF-8", "@euro", "_de", "de_", "de__DE", "de-", "-de", "ü"})
       CHECK(throws<bcal::ConfigError>([&] { bcal::locale_names(bad); }));
 
     auto env = [](std::map<std::string, std::string> vars) {
@@ -425,8 +429,8 @@ int main() {
     CHECK(bcal::choose_locale(none, none, env({})) == "en");
     CHECK(bcal::choose_locale(none, none, env({{"LANG", "C.UTF-8"}})) == "C.UTF-8");   // means English
     CHECK(bcal::choose_locale(none, none, env({{"LC_ALL", "what ever!"}, {"LANG", "de_DE"}})) == "en");   // garbage: no language
-    CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(O("de-DE"), none, env({})); }));
-    CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(none, O("de-DE"), env({})); }));
+    CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(O("../x"), none, env({})); }));
+    CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(none, O("../x"), env({})); }));
   }
 
   // --- languages
@@ -484,7 +488,7 @@ int main() {
       return false;
     };
     CHECK(fails("fallback: zz_ZZ\n", 2));                  // no file
-    CHECK(fails("fallback: de-DE\n", 1) && fails("fallback: [de]\n", 1) && fails("fallback:\n", 1));
+    CHECK(fails("fallback: ../x\n", 1) && fails("fallback: [de]\n", 1) && fails("fallback:\n", 1));
     CHECK(fails("fallback: yy\n", 2));
     sb.write("fb/yy.yaml", "ui: {date: Y}\n");
     CHECK(fails("fallback: yy\n", 1));                      // no months in the end

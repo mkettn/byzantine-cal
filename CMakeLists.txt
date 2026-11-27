@@ -107,9 +107,11 @@ if(BUILD_TESTING)
   bcal_expect_args(lang_german "${OLD}|--lang=de_DE|${NATIVITY}" 0 "Pascha: 2026-04-12.+## Januar.+\\| Datum \\| Wochentag \\| Daten \\|.+2026-01-07 \\| Mittwoch")
   bcal_expect_args(lang_territory_file "${OLD}|--lang=de_AT|${NATIVITY}" 0 "## J.+nner.+Mittwoch")   # months of de_AT, the rest of de
   # fr_FR has no file: English, also if the configuration says German
+  # any name: foo_BAR.yaml is found in a lang_dir
+  bcal_expect_args(lang_any_name "--year=2026|--old|-C|${CFG}/custom.yaml|--lang=foo_BAR|${NATIVITY}" 0 "Paschax:.+## Janx.+Wex")
   bcal_expect_args(lang_unknown_is_english "--year=2026|--old|-C|${CFG}/german.yaml|--lang=fr_FR|${NATIVITY}" 0 "## January.+Wednesday")
-  bcal_expect_args(lang_invalid "${OLD}|--lang=de-DE|${NATIVITY}" 3 "invalid locale")
-  bcal_expect_args(lang_empty "${OLD}|--lang=|${NATIVITY}" 3 "--lang needs a locale name")
+  bcal_expect_args(lang_invalid "${OLD}|--lang=../x|${NATIVITY}" 3 "invalid language")
+  bcal_expect_args(lang_empty "${OLD}|--lang=|${NATIVITY}" 3 "--lang needs a language name")
   bcal_expect_args(lang_without_year "--lang=de_DE|${NATIVITY}" 3 "need --year")
   bcal_expect_args(lang_from_config "--year=2026|--old|-C|${CFG}/german.yaml|${NATIVITY}" 0 "## Januar.+Mittwoch")
   bcal_expect_args(lang_option_beats_config "--year=2026|--old|-C|${CFG}/german.yaml|--lang=en|${NATIVITY}" 0 "## January.+Wednesday")

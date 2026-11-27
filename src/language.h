@@ -13,16 +13,18 @@
 
 namespace bcal {
 
-// The names of the language files to look for a locale, most specific first. A
-// locale is written as for setlocale() without the codeset (".UTF-8" is implied;
-// it and a "@modifier" are ignored): "de_DE" -> {"de_DE", "de"}, "de" -> {"de"}.
-// "C", "POSIX" and "" mean no language: {"en"}. Throws ConfigError for anything
-// else (2-3 lowercase letters, optionally _ and 2 uppercase letters).
+// The names of the language files to look for a language, most specific first.
+// A language is a name that is safe in a file name (letters, digits, _ and -);
+// names like the locales of setlocale() (de_DE) are only a convention. A codeset
+// (".UTF-8", implied) and a "@modifier" are ignored. The name is shortened at
+// the last "_" step by step: "de_DE" -> {"de_DE", "de"}, "foo_BAR" -> {"foo_BAR",
+// "foo"}. "C", "POSIX" and "" mean no language: {"en"}. Throws ConfigError for
+// any other name.
 std::vector<std::string> locale_names(const std::string& locale);
 
-// The locale to use: `from_cli` (--lang), else `from_config` (language:), else
+// The language to use: `from_cli` (--lang), else `from_config` (language:), else
 // the first non-empty of LC_ALL, LC_MESSAGES and LANG (English if it is not a
-// valid locale), else "en". Throws ConfigError for an invalid `from_cli` or
+// valid name), else "en". Throws ConfigError for an invalid `from_cli` or
 // `from_config`.
 std::string choose_locale(const std::optional<std::string>& from_cli,
                           const std::optional<std::string>& from_config,
@@ -34,7 +36,7 @@ using LanguageFileFinder = std::function<std::filesystem::path(const std::string
 
 // The words of a language, read from a language file (YAML): `months` (12
 // names), `weekdays` (7 names, Monday first), `ui` (texts for templates) and
-// `fallback` (a locale name, optional). Every key is optional, but `months` and
+// `fallback` (a language name, optional). Every key is optional, but `months` and
 // `weekdays` must be complete if present.
 //
 // The `fallback` language (found with `find`) is read before the file itself, so

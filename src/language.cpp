@@ -12,14 +12,16 @@ std::vector<std::string> locale_names(const std::string& locale) {
   name = name.substr(0, name.find('.'));                  // codeset
   if (locale.empty() || name == "C" || name == "POSIX") return {"en"};
 
-  static const std::regex pattern("([a-z]{2,3})(_[A-Z]{2})?");
-  std::smatch m;
-  if (!std::regex_match(name, m, pattern))
-    throw ConfigError("invalid locale \"" + locale + "\" (write it like de or de_DE)");
+  // Any name is fine that is safe in a file name. Names like de_DE are only a convention.
+  static const std::regex pattern("[A-Za-z0-9]+([_-][A-Za-z0-9]+)*");
+  if (!std::regex_match(name, pattern))
+    throw ConfigError("invalid language \"" + locale + "\" (use letters, digits, _ and -, e.g. de or de_DE)");
 
-  std::vector<std::string> names;
-  if (m[2].matched) names.push_back(name);
-  names.push_back(m[1]);
+  std::vector<std::string> names{name};
+  for (auto cut = name.rfind('_'); cut != std::string::npos; cut = name.rfind('_')) {
+    name.resize(cut);  // foo_BAR_baz -> foo_BAR -> foo
+    names.push_back(name);
+  }
   return names;
 }
 
@@ -83,7 +85,7 @@ void Language::load(const std::filesystem::path& file, const LanguageFileFinder&
 
   // The fallback first, so that the keys of this file replace its keys.
   if (const YAML::Node fallback = root["fallback"]; fallback.IsDefined()) {
-    if (!fallback.IsScalar()) throw ConfigError(location(file, fallback) + "fallback must be a locale name");
+    if (!fallback.IsScalar()) throw ConfigError(location(file, fallback) + "fallback must be a language name");
     std::filesystem::path next;
     try {
       locale_names(fallback.Scalar());  // validates
