@@ -26,7 +26,7 @@ Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--offset=<days>]] <yaml_file>
+  byzantine-cal [(-v | -q)] [--year=<year> [--old]] <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
 
@@ -36,10 +36,9 @@ Options:
   -y <year>, --year=<year>
                 Generate the calendar of this year and print
                 every day that has a rule: "YYYY-MM-DD<TAB>data".
-  -o <days>, --offset=<days>
-                Shift all fixed (DD.MM) dates by this many days, e.g. 13
-                moves 25.12 to 7 January. Pascha dates are not shifted.
-                Needs --year; default is 0.
+  --old         Old (Julian) calendar: shift all fixed (DD.MM) dates by
+                13 days, e.g. 25.12 becomes 7 January. Pascha dates are
+                not shifted. Needs --year.
   -h --help     Show this help.
   --version     Show version.
 
@@ -71,22 +70,21 @@ int main(int argc, char** argv) {
   else if (args["--quiet"].asBool())
     spdlog::set_level(spdlog::level::err);
 
-  int year = 0, offset = 0;
+  int year = 0;
+  int offset_days = 0;
   const bool generate = static_cast<bool>(args["--year"]);
-  if (!generate && args["--offset"]) {
-    std::fprintf(stderr, "--offset needs --year\n\n%s", USAGE);
+  if (!generate && args["--old"].asBool()) {
+    std::fprintf(stderr, "--old needs --year\n\n%s", USAGE);
     return 3;
   }
+  if (args["--old"].asBool()) offset_days = bcal::kJulianGregorianOffsetDays;
   if (generate) {
-    if (!parse_int(args["--year"].asString(), year) ||
-        (args["--offset"] &&
-         !parse_int(args["--offset"].asString(), offset))) {
-      std::fprintf(stderr, "year and offset must be whole numbers\n");
+    if (!parse_int(args["--year"].asString(), year)) {
+      std::fprintf(stderr, "year must be a whole number\n");
       return 3;
     }
-    if (year < bcal::kMinYear || year > bcal::kMaxYear || offset < -365 || offset > 365) {
-      std::fprintf(stderr,
-                   "year must be 1..9999 and offset -365..365\n");
+    if (year < bcal::kMinYear || year > bcal::kMaxYear) {
+      std::fprintf(stderr, "year must be 1..9999\n");
       return 3;
     }
   }
@@ -117,7 +115,7 @@ int main(int argc, char** argv) {
   spdlog::info("{}: OK ({} entries)", path, report.entries);
 
   if (generate) {
-    bcal::YearCalendar calendar(root, year, offset);
+    bcal::YearCalendar calendar(root, year, offset_days);
     int with_rule = 0;
     for (const auto& day : calendar) {
       if (!day.has_rule()) continue;

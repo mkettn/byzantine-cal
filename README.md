@@ -84,16 +84,17 @@ for (const bcal::CalendarDay& day : cal) { /* 365 or 366 days, in order */ }
 ```
 
 - Rules are applied in file order; where several apply to a day, the later one wins.
-- The offset is added to every fixed (`DD.MM`) date and leaps over year boundaries:
-  with an offset of 13, 25.12. of the previous year falls on 7 January. Pascha-relative
+- `offset_days` is added to every fixed (`DD.MM`) date and leaps over year boundaries.
+  The command line option `--old` sets it to 13 (old calendar): 25.12. of the previous year falls on 7 January. Pascha-relative
   dates are not shifted. Weekday rules use the weekday of the shifted date.
 - 29.02. only exists in leap years; in other years the entry has no effect.
-- Years 1..9999 and offsets of -365..365 are supported.
+- Years 1..9999 are accepted. The 13-day difference between the calendars is exact from 1900 to 2099.
+- The class itself takes any `offset_days` within -365..365.
 
 ## Usage
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--offset=<days>]] <yaml_file>
+byzantine-cal [(-v | -q)] [--year=<year> [--old]] <yaml_file>
 ```
 
 Without `--year` the file is only checked. With `--year` the calendar of that year is
@@ -101,7 +102,7 @@ generated and every day that has a rule is printed as `YYYY-MM-DD<TAB>data`:
 
 ```bash
 byzantine-cal --year=2026 calendar.yml
-byzantine-cal --year=2026 --offset=13 calendar.yml   # 25.12. -> 7 January
+byzantine-cal --year=2026 --old calendar.yml   # old calendar: 25.12. -> 7 January
 ```
 
 Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` file unreadable (or a directory), `3` wrong command line.
