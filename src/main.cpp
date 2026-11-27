@@ -5,14 +5,18 @@
 
 #include <charconv>
 #include <cstdio>
+#include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
 
 #include <yaml-cpp/yaml.h>
 
-#include "pascha.h"
-#include "validator.h"
+#include "builtin_templates.h"
 #include "calendar_loader.h"
+#include "pascha.h"
+#include "template_backend.h"
+#include "validator.h"
 
 static bool parse_int(const std::string& text, int& out) {
   auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), out);
@@ -25,7 +29,8 @@ Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--old]] <yaml_file>
+  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--template=<file>] [--output=<file>]]
+                <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
 
@@ -33,11 +38,17 @@ Options:
   -v --verbose  Show debug output.
   -q --quiet    Only show errors.
   -y <year>, --year=<year>
-                Generate the calendar of this year and print
-                every day that has a rule: "YYYY-MM-DD<TAB>data".
+                Generate the calendar of this year and render it with a
+                template (Markdown unless --template is given).
   --old         Old (Julian) calendar: shift all fixed (DD.MM) dates by
                 13 days, e.g. 25.12 becomes 7 January. Pascha dates are
                 not shifted. Needs --year.
+  -t <file>, --template=<file>
+                Render with this inja template instead of the built-in
+                Markdown one. Needs --year.
+  -o <file>, --output=<file>
+                Write the result to this file instead of stdout.
+                Needs --year.
   -h --help     Show this help.
   --version     Show version.
 
@@ -73,9 +84,10 @@ int main(int argc, char** argv) {
   const bool generate = static_cast<bool>(args["--year"]);
   if (generate ? !parse_int(args["--year"].asString(), year) ||
                      year < bcal::kMinYear || year > bcal::kMaxYear
-               : args["--old"].asBool()) {
+               : args["--old"].asBool() || args["--template"] ||
+                     args["--output"]) {
     std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old needs --year\n");
+                                  : "--old, --template and --output need --year\n");
     return 3;
   }
   const int offset_days =
@@ -106,12 +118,39 @@ int main(int argc, char** argv) {
   }
   spdlog::info("{}: OK ({} entries)", path, report.entries);
 
-  if (generate) {
-    for (const auto& day : bcal::load_year_calendar(root, year, offset_days))
-      if (day.has_rule())
-        std::printf("%04d-%02u-%02u\t%s\n", static_cast<int>(day.date.year()),
-                    static_cast<unsigned>(day.date.month()),
-                    static_cast<unsigned>(day.date.day()), day.data->c_str());
+  if (!generate) return 0;
+
+  std::string tpl = bcal::kMarkdownTemplate;
+  if (args["--template"]) {
+    const auto tpl_path = args["--template"].asString();
+    std::ifstream in(tpl_path);
+    if (!in) {
+      spdlog::error("cannot read template {}", tpl_path);
+      return 2;
+    }
+    std::stringstream ss;
+    ss << in.rdbuf();
+    tpl = ss.str();
+  }
+
+  std::string text;
+  try {
+    text = bcal::render_template(
+        bcal::load_year_calendar(root, year, offset_days), tpl);
+  } catch (const bcal::TemplateError& e) {
+    spdlog::error("template error: {}", e.what());
+    return 1;
+  }
+
+  if (args["--output"]) {
+    const auto out_path = args["--output"].asString();
+    std::ofstream out(out_path);
+    if (!(out << text)) {
+      spdlog::error("cannot write {}", out_path);
+      return 2;
+    }
+  } else {
+    std::fputs(text.c_str(), stdout);
   }
   return 0;
 }

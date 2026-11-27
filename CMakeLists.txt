@@ -12,11 +12,21 @@ list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(docopt REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(inja REQUIRED)
+
+# Built-in templates (templates/*.inja) are compiled into the program.
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/templates/markdown.md.inja BCAL_MARKDOWN_TEMPLATE)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+             ${CMAKE_CURRENT_SOURCE_DIR}/templates/markdown.md.inja)
+configure_file(src/builtin_templates.cpp.in ${CMAKE_CURRENT_BINARY_DIR}/builtin_templates.cpp @ONLY)
 
 add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp
-            src/year_calendar.cpp src/calendar_loader.cpp)
+            src/year_calendar.cpp src/calendar_loader.cpp
+            src/template_backend.cpp ${CMAKE_CURRENT_BINARY_DIR}/builtin_templates.cpp)
 target_include_directories(bcal PUBLIC src)
-target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog)
+target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog
+                      nlohmann_json::nlohmann_json pantor::inja)
 target_compile_options(bcal PRIVATE -Wall -Wextra -Wpedantic)
 
 add_executable(byzantine-cal src/main.cpp)
@@ -69,9 +79,22 @@ if(BUILD_TESTING)
   bcal_expect_args(year_old "--year=2026|--old|${NATIVITY}" 0 "2026-01-07.+Nativity")
   bcal_expect_args(year_old_pascha "--year=2026|--old|${NATIVITY}" 0 "2026-04-12.+Pascha")
   bcal_expect_args(year_data "--year=2026|${NATIVITY}" 0 "2026-11-16.+note: fast")
+  set(TPL ${CMAKE_CURRENT_SOURCE_DIR}/tests/templates)
+  bcal_expect_args(year_markdown "--year=2026|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12.+## April.+2026-04-12 \\| Sunday")
+  bcal_expect_args(template_file "--year=2026|--old|--template=${TPL}/list.txt.inja|${NATIVITY}" 0 "2026-01-07;3;{name: Nativity")
+  bcal_expect_args(template_broken "--year=2026|--template=${TPL}/broken.inja|${NATIVITY}" 1 "template error")
+  bcal_expect_args(template_unknown_value "--year=2026|--template=${TPL}/unknown.inja|${NATIVITY}" 1 "template error")
+  bcal_expect_args(template_missing "--year=2026|--template=${TPL}/nope.inja|${NATIVITY}" 2 "cannot read template")
+  bcal_expect_args(template_without_year "--template=${TPL}/list.txt.inja|${NATIVITY}" 3 "need --year")
+  add_test(NAME output_file
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
+                   "-DARGS=--year=2026|--output=${CMAKE_CURRENT_BINARY_DIR}/out.md|${NATIVITY}"
+                   -DCODE=0 "-DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/out.md"
+                   "-DOUT_REGEX=# 2026.+Nativity" -P ${RUNNER})
+  bcal_expect_args(output_file_unwritable "--year=2026|--output=${CMAKE_CURRENT_BINARY_DIR}/no/such/dir/out.md|${NATIVITY}" 2 "cannot write")
   bcal_expect_args(year_not_a_number "--year=abc|${NATIVITY}" 3 "whole number")
   bcal_expect_args(year_out_of_range "--year=0|${NATIVITY}" 3 "1..9999")
-  bcal_expect_args(old_without_year "--old|${NATIVITY}" 3 "needs --year")
+  bcal_expect_args(old_without_year "--old|${NATIVITY}" 3 "need --year")
   bcal_expect_args(year_invalid_file "--year=2026|${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid/bad_day.yml" 1 "does not exist")
   add_test(NAME error_usage COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
            -DCODE=3 -P ${RUNNER})

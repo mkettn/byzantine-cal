@@ -47,18 +47,21 @@ Weekdays (lowercase): `mon tue wed thu fri sat sun`, written either as one range
 ## Build
 
 Requires CMake >= 3.24 and a C++20 compiler. Dependencies
-(yaml-cpp, spdlog, docopt.cpp) are resolved by `cmake/Find<lib>.cmake`: an
+(yaml-cpp, spdlog, docopt.cpp, nlohmann_json, inja) are resolved by `cmake/Find<lib>.cmake`: an
 installed copy is used if found, otherwise it is fetched with FetchContent.
 
 Installed libraries of these versions **or newer** are accepted (`find_package` minimum
-version). If none is found, exactly these versions, the ones shipped in Ubuntu 24.04 LTS
-(`libyaml-cpp-dev`, `libspdlog-dev`, `libdocopt-dev`), are fetched:
+version). If none is found, exactly these versions are fetched. They are the ones shipped in
+Ubuntu 24.04 LTS (`libyaml-cpp-dev`, `libspdlog-dev`, `libdocopt-dev`, `nlohmann-json3-dev`),
+except for inja, which Ubuntu does not package:
 
 | Library | Minimum / fetched version |
 |---|---|
 | yaml-cpp | 0.8.0 |
 | spdlog | 1.12.0 |
 | docopt.cpp | 0.6.3 |
+| nlohmann_json | 3.11.3 |
+| inja | 3.4.0 |
 
 ```bash
 cmake -S . -B build
@@ -99,18 +102,50 @@ for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 `load_year_calendar()` (`src/calendar_loader.h`) builds the calendar from a calendar file
 (a `YAML::Node`); the data of a day is the YAML of its rule as a single line.
 
+## Template backends
+
+The output is produced by a backend that works on the `YearCalendar`
+(`src/template_backend.h`). A backend is an [inja](https://github.com/pantor/inja) template,
+so a new output format (HTML, ICS, ...) is just another template. The Markdown backend is
+`templates/markdown.md.inja`; it is built into the program.
+
+`calendar_to_json()` hands the calendar to the template as JSON (nlohmann_json):
+
+| Value | Content |
+|---|---|
+| `year`, `offset_days`, `pascha` | Year, offset, date of Pascha (`YYYY-MM-DD`) |
+| `days` | Every day of the year, in order |
+| `months` | `number`, `name`, `rule_count` and the `days` of each month |
+
+Each day has `date` (`YYYY-MM-DD`), `year`, `month`, `day`, `weekday` (1 = Monday .. 7 = Sunday),
+`weekday_name`, `has_rule` and `data` (the data of its rule, empty without one).
+
+Besides the inja built-ins the function `replace(text, from, to)` is available. Blocks
+(`{% ... %}`) alone on a line leave no empty line behind, and line statements start with `%%`
+(inja's default `##` is a Markdown heading).
+
+```
+{% for day in days %}
+{% if day.has_rule %}
+{{ day.date }} {{ day.weekday_name }}: {{ day.data }}
+{% endif %}
+{% endfor %}
+```
+
 ## Usage
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--old]] <yaml_file>
+byzantine-cal [(-v | -q)] [--year=<year> [--old] [--template=<file>] [--output=<file>]] <yaml_file>
 ```
 
 Without `--year` the file is only checked. With `--year` the calendar of that year is
-generated and every day that has a rule is printed as `YYYY-MM-DD<TAB>data`:
+generated and rendered with a template, as Markdown unless `--template` names another one;
+the result goes to stdout or to the file given by `--output`:
 
 ```bash
-byzantine-cal --year=2026 calendar.yml
-byzantine-cal --year=2026 --old calendar.yml   # old calendar: 25.12. -> 7 January
+byzantine-cal --year=2026 calendar.yml > calendar.md
+byzantine-cal --year=2026 --old calendar.yml           # old calendar: 25.12. -> 7 January
+byzantine-cal --year=2026 --template=my.html.inja --output=2026.html calendar.yml
 ```
 
 Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` file unreadable (or a directory), `3` wrong command line.
