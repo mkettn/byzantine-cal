@@ -8,7 +8,7 @@ C++20 CLI for Orthodox fasting calendars. It parses and validates the dates and 
 - `src/year_calendar.*` - `YearCalendar(year, offset_days)`: all days of a year; the constructor calculates Pascha; `add_day()` / `add_range()` attach a data string (later calls win; `offset_days` shifts fixed dates, leaping over New Year; no YAML in this class)
 - `src/calendar_loader.*` - `load_year_calendar()`: calendar YAML -> `YearCalendar` (data = rule as one-line YAML)
 - `src/template_backend.*` - `calendar_to_json()` (YearCalendar -> nlohmann JSON) and `render_template()` (inja); every output format is a template, no format code in C++
-- `templates/*.inja` - templates; the Markdown one is compiled into the program (`src/builtin_templates.cpp.in`)
+- `tpl/*.inja` - templates, installed to `<prefix>/lib/byzantine-cal/tpl` (prefix = `CMAKE_INSTALL_PREFIX`, compiled in as `BCAL_TPL_DIR`) and read from there at run time
 - `src/main.cpp` - docopt CLI, spdlog output
 - `cmake/Find*.cmake` - one module per dependency (find_package, else FetchContent)
 - `tests/` - `test_main.cpp` (unit); `valid/*.yml` must pass, `invalid/*.yml` need an exact exit code and message (see CMakeLists.txt, `run_expect.cmake`)

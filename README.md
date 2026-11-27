@@ -69,6 +69,19 @@ cmake --build build -j
 ctest --test-dir build
 ```
 
+## Install
+
+```bash
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/usr/local   # the default prefix
+cmake --build build -j
+cmake --install build
+```
+
+The program goes to `<prefix>/bin` and the templates in `tpl/` to
+`<prefix>/lib/byzantine-cal/tpl`. The program looks for its Markdown template there
+(`/usr/local/lib/byzantine-cal/tpl/markdown.md.inja` by default), so the prefix has to be
+set when configuring, not when installing.
+
 ## Year calendar
 
 `YearCalendar` (`src/year_calendar.h`) is the calendar of one year, 1 January to 31 December.
@@ -107,7 +120,8 @@ for (const bcal::CalendarDay& d : cal) { /* 365 or 366 days, in order */ }
 The output is produced by a backend that works on the `YearCalendar`
 (`src/template_backend.h`). A backend is an [inja](https://github.com/pantor/inja) template,
 so a new output format (HTML, ICS, ...) is just another template. The Markdown backend is
-`templates/markdown.md.inja`; it is built into the program.
+`tpl/markdown.md.inja`; it is installed with the program and used unless `--template` names
+another one (see [Install](#install)).
 
 `calendar_to_json()` hands the calendar to the template as JSON (nlohmann_json):
 

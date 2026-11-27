@@ -5,6 +5,7 @@
 
 #include <charconv>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -12,7 +13,6 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include "builtin_templates.h"
 #include "calendar_loader.h"
 #include "pascha.h"
 #include "template_backend.h"
@@ -21,6 +21,16 @@
 static bool parse_int(const std::string& text, int& out) {
   auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), out);
   return ec == std::errc() && ptr == text.data() + text.size();
+}
+
+// Reads a whole file; false if it is not a readable regular file.
+static bool read_file(const std::string& path, std::string& out) {
+  std::ifstream in(path);
+  if (!in || !std::filesystem::is_regular_file(path)) return false;
+  std::stringstream ss;
+  ss << in.rdbuf();
+  out = ss.str();
+  return true;
 }
 
 static const char USAGE[] = R"(byzantine-cal - check a fasting calendar file and generate the calendar of a year.
@@ -44,8 +54,8 @@ Options:
                 13 days, e.g. 25.12 becomes 7 January. Pascha dates are
                 not shifted. Needs --year.
   -t <file>, --template=<file>
-                Render with this inja template instead of the built-in
-                Markdown one. Needs --year.
+                Render with this inja template instead of the Markdown
+                one from the installed tpl directory. Needs --year.
   -o <file>, --output=<file>
                 Write the result to this file instead of stdout.
                 Needs --year.
@@ -120,17 +130,13 @@ int main(int argc, char** argv) {
 
   if (!generate) return 0;
 
-  std::string tpl = bcal::kMarkdownTemplate;
-  if (args["--template"]) {
-    const auto tpl_path = args["--template"].asString();
-    std::ifstream in(tpl_path);
-    if (!in) {
-      spdlog::error("cannot read template {}", tpl_path);
-      return 2;
-    }
-    std::stringstream ss;
-    ss << in.rdbuf();
-    tpl = ss.str();
+  const std::string tpl_path = args["--template"]
+                                   ? args["--template"].asString()
+                                   : std::string(BCAL_TPL_DIR) + "/markdown.md.inja";
+  std::string tpl;
+  if (!read_file(tpl_path, tpl)) {
+    spdlog::error("cannot read template {}", tpl_path);
+    return 2;
   }
 
   std::string text;

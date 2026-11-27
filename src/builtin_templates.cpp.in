@@ -1,7 +1,0 @@
-#include "builtin_templates.h"
-
-namespace bcal {
-
-const char* const kMarkdownTemplate = R"BCAL_TPL(@BCAL_MARKDOWN_TEMPLATE@)BCAL_TPL";
-
-}  // namespace bcal
