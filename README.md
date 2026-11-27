@@ -77,10 +77,28 @@ cmake --build build -j
 cmake --install build
 ```
 
-The program goes to `<prefix>/bin` and the templates in `tpl/` to
-`<prefix>/lib/byzantine-cal/tpl`. The program looks for its Markdown template there
-(`/usr/local/lib/byzantine-cal/tpl/markdown.inja` by default), so the prefix has to be
-set when configuring, not when installing.
+The program goes to `<prefix>/bin`, the configuration `config/config.yaml` and the templates in
+`tpl/` to `<prefix>/lib/byzantine-cal` (`/usr/local/lib/byzantine-cal/config.yaml` by default).
+The prefix is compiled in, so it has to be set when configuring, not when installing.
+
+## Configuration
+
+The configuration is read from a YAML file (`ByzantineCalConfig`, `src/byzantine_cal_config.h`):
+
+```yaml
+template_dir:          # directories to look for templates, in this order
+  - /usr/share/tpl     # an absolute name, or
+  - tpl                # a name relative to the directory of this file
+```
+
+Relative names are relative to the directory of the path the file is given by (a symlink is not
+followed). Unknown options, an option that is set twice and several YAML documents are an error. The file is, in this order:
+
+1. the one given with `-C <file>`,
+2. `bcal.yaml` in the current directory (if there is something with that name it is used, and
+   reported if it cannot be read),
+3. `config.yaml` in the installation directory (`/usr/local/lib/byzantine-cal/config.yaml`),
+   which names the installed `tpl` directory.
 
 ## Year calendar
 
@@ -121,10 +139,11 @@ A backend (`src/template_backend.h`) renders the `YearCalendar` with an
 [inja](https://github.com/pantor/inja) template read from a file, so a new output format (HTML,
 ICS, ...) is another template with its own backend class. `MarkdownBackend`'s template is
 `markdown.inja` (`tpl/markdown.inja` in the sources, installed with the program, see
-[Install](#install)).
+[Install](#install)); the program finds it in the `template_dir` of the [configuration](#configuration).
 
 ```cpp
-bcal::MarkdownBackend backend("/usr/local/lib/byzantine-cal/tpl/markdown.inja");
+bcal::ByzantineCalConfig config(bcal::ByzantineCalConfig::find_file(std::nullopt, installed_config));
+bcal::MarkdownBackend backend(config.find_template(bcal::MarkdownBackend::kTemplateFile));
 std::string text = backend.render(calendar);   // TemplateFileError / TemplateError on failure
 ```
 
@@ -139,16 +158,18 @@ statements start with `%%` (inja's default `##` is a Markdown heading).
 ## Usage
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>]] <yaml_file>
+byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]] <yaml_file>
 ```
 
 Without `--year` the file is only checked. With `--year` the calendar of that year is
-generated and rendered as Markdown; the result goes to stdout or to the file given by `--output`:
+generated and rendered as Markdown with the template found through the configuration; the result
+goes to stdout or to the file given by `--output`:
 
 ```bash
 byzantine-cal --year=2026 calendar.yml > calendar.md
 byzantine-cal --year=2026 --old calendar.yml           # old calendar: 25.12. -> 7 January
 byzantine-cal --year=2026 --output=2026.md calendar.yml
+byzantine-cal --year=2026 -C my-config.yaml calendar.yml
 ```
 
-Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout), `3` wrong command line.
+Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file or template is found, `3` wrong command line.

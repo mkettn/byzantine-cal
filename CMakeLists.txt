@@ -15,14 +15,14 @@ find_package(docopt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(inja REQUIRED)
 
-# The templates (tpl/) are installed to <prefix>/lib/byzantine-cal/tpl and read from
-# there at run time. The prefix is CMAKE_INSTALL_PREFIX (default /usr/local); set it
-# when configuring, e.g. -DCMAKE_INSTALL_PREFIX=/usr.
-set(BCAL_TPL_DIR "${CMAKE_INSTALL_PREFIX}/lib/byzantine-cal/tpl")
+# The program is installed to <prefix>/bin, the configuration (config/config.yaml) and
+# the templates (tpl/) to <prefix>/lib/byzantine-cal. The prefix is CMAKE_INSTALL_PREFIX
+# (default /usr/local); set it when configuring, e.g. -DCMAKE_INSTALL_PREFIX=/usr.
+set(BCAL_CONFIG_FILE "${CMAKE_INSTALL_PREFIX}/lib/byzantine-cal/config.yaml")
 
 add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp
             src/year_calendar.cpp src/calendar_loader.cpp
-            src/template_backend.cpp)
+            src/template_backend.cpp src/byzantine_cal_config.cpp)
 target_include_directories(bcal PUBLIC src)
 target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog
                       nlohmann_json::nlohmann_json pantor::inja)
@@ -31,10 +31,11 @@ target_compile_options(bcal PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(byzantine-cal src/main.cpp)
 target_link_libraries(byzantine-cal PRIVATE bcal docopt_s)
 target_compile_definitions(byzantine-cal PRIVATE BCAL_VERSION="${PROJECT_VERSION}"
-                           BCAL_TPL_DIR="${BCAL_TPL_DIR}")
+                           BCAL_CONFIG_FILE="${BCAL_CONFIG_FILE}")
 target_compile_options(byzantine-cal PRIVATE -Wall -Wextra -Wpedantic)
 
 install(TARGETS byzantine-cal RUNTIME DESTINATION bin)
+install(FILES config/config.yaml DESTINATION lib/byzantine-cal)
 install(DIRECTORY tpl/ DESTINATION lib/byzantine-cal/tpl)
 
 include(CTest)
@@ -45,18 +46,16 @@ if(BUILD_TESTING)
                              BCAL_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tpl"
                              BCAL_TEST_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/templates")
   add_test(NAME unit COMMAND bcal-tests)
-  # The same program, but reading its templates from the source tree, because
-  # the build tree has no installed templates.
-  add_executable(bcal-cli-test src/main.cpp)
-  target_link_libraries(bcal-cli-test PRIVATE bcal docopt_s)
-  target_compile_definitions(bcal-cli-test PRIVATE BCAL_VERSION="${PROJECT_VERSION}"
-                             BCAL_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tpl")
   set(RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_expect.cmake)
   # Arguments separated by "|"; exit code and a regex on the output are checked.
+  # An optional last argument is the working directory.
   function(bcal_expect_args name args code regex)
     add_test(NAME ${name}
-             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:bcal-cli-test>
+             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
                      "-DARGS=${args}" -DCODE=${code} "-DREGEX=${regex}" -P ${RUNNER})
+    if(ARGN)
+      set_tests_properties(${name} PROPERTIES WORKING_DIRECTORY ${ARGN})
+    endif()
   endfunction()
   function(bcal_expect name file code regex)
     bcal_expect_args(${name} ${CMAKE_CURRENT_SOURCE_DIR}/tests/${file} ${code} "${regex}")
@@ -87,24 +86,33 @@ if(BUILD_TESTING)
   bcal_expect(error_missing_file invalid/nope.yml 2 "cannot read")
   bcal_expect(error_directory invalid 2 "cannot read")
   set(NATIVITY ${CMAKE_CURRENT_SOURCE_DIR}/tests/year/nativity.yml)
-  bcal_expect_args(year_old "--year=2026|--old|${NATIVITY}" 0 "2026-01-07.+Nativity")
-  bcal_expect_args(year_data "--year=2026|${NATIVITY}" 0 "2026-11-16.+note: fast")
-  bcal_expect_args(year_markdown "--year=2026|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12.+## April.+2026-04-12 \\| Sunday")
-  bcal_expect_args(year_markdown_escaped "--year=2026|${CMAKE_CURRENT_SOURCE_DIR}/tests/year/special.yml" 0
+  set(CFG ${CMAKE_CURRENT_SOURCE_DIR}/tests/config)
+  bcal_expect_args(year_old "--year=2026|--old|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "2026-01-07.+Nativity")
+  bcal_expect_args(year_data "--year=2026|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "2026-11-16.+note: fast")
+  bcal_expect_args(year_markdown "--year=2026|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12.+## April.+2026-04-12 \\| Sunday")
+  bcal_expect_args(year_markdown_escaped "--year=2026|-C|${CFG}/bcal.yaml|${CMAKE_CURRENT_SOURCE_DIR}/tests/year/special.yml" 0
                    "Theophany\\\\_Feast.+has \\\\`tick\\\\` \\\\\\| pipe")
-  # The program reads its Markdown template from the install location.
-  add_test(NAME default_template
-           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal> -DTPL_DIR=${BCAL_TPL_DIR}
-                   -DYAML=${NATIVITY} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/default_template.cmake)
+  # Without -C and bcal.yaml the program uses the installed config.yaml.
+  add_test(NAME default_config
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal> -DCONFIG=${BCAL_CONFIG_FILE}
+                   -DYAML=${NATIVITY} -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/default_config.cmake)
+  # The configuration file: bcal.yaml in the working directory, -C wins over it.
+  # (tests/config/cwd has its own template, so an installed config would give other output)
+  bcal_expect_args(config_in_working_dir "--year=2026|${NATIVITY}" 0 "cwd template 2026" ${CFG}/cwd)
+  bcal_expect_args(config_option_wins "--year=2026|-C|${CFG}/no-template.yaml|${NATIVITY}" 2
+                   "cannot find the template markdown.inja in the template_dir of ${CFG}/no-template.yaml" ${CFG}/cwd)
+  bcal_expect_args(config_missing "--year=2026|-C|${CFG}/nope.yaml|${NATIVITY}" 2 "cannot read configuration file")
+  bcal_expect_args(config_invalid "--year=2026|-C|${CFG}/invalid.yaml|${NATIVITY}" 1 "invalid.yaml:1: template_dir must be a list")
+  bcal_expect_args(config_without_year "-C|${CFG}/bcal.yaml|${NATIVITY}" 3 "need --year")
   add_test(NAME output_file
-           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:bcal-cli-test>
-                   "-DARGS=--year=2026|--output=${CMAKE_CURRENT_BINARY_DIR}/out.md|${NATIVITY}"
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
+                   "-DARGS=--year=2026|-C|${CFG}/bcal.yaml|--output=${CMAKE_CURRENT_BINARY_DIR}/out.md|${NATIVITY}"
                    -DCODE=0 "-DOUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/out.md"
                    "-DOUT_REGEX=# 2026.+Nativity" -P ${RUNNER})
   if(EXISTS /dev/full)   # every write fails: must be reported, also when only flushing
-    bcal_expect_args(output_file_write_fails "--year=2026|--output=/dev/full|${NATIVITY}" 2 "cannot write /dev/full")
+    bcal_expect_args(output_file_write_fails "--year=2026|-C|${CFG}/bcal.yaml|--output=/dev/full|${NATIVITY}" 2 "cannot write /dev/full")
   endif()
-  bcal_expect_args(output_file_unwritable "--year=2026|--output=${CMAKE_CURRENT_BINARY_DIR}/no/such/dir/out.md|${NATIVITY}" 2 "cannot write")
+  bcal_expect_args(output_file_unwritable "--year=2026|-C|${CFG}/bcal.yaml|--output=${CMAKE_CURRENT_BINARY_DIR}/no/such/dir/out.md|${NATIVITY}" 2 "cannot write")
   bcal_expect_args(year_not_a_number "--year=abc|${NATIVITY}" 3 "whole number")
   bcal_expect_args(year_out_of_range "--year=0|${NATIVITY}" 3 "1..9999")
   bcal_expect_args(old_without_year "--old|${NATIVITY}" 3 "need --year")
