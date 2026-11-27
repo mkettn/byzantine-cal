@@ -35,7 +35,8 @@ std::string escape_markdown(const std::string& text);
 // escape_markdown(text) are available. Blocks
 // ({% ... %}) that are alone on their line leave no empty line behind. Line
 // statements start with "%%" (not inja's default "##", a Markdown heading).
-// Throws TemplateError if the template is invalid or cannot be rendered.
+// Throws TemplateError if the template is invalid or cannot be rendered, for
+// whatever reason.
 std::string render_template(const YearCalendar& calendar,
                             const std::string& template_text);
 

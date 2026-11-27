@@ -102,9 +102,9 @@ std::string render_template(const YearCalendar& calendar,
       return text;
     });
     return env.render(template_text, calendar_to_json(calendar));
-  } catch (const inja::InjaError& e) {
-    throw TemplateError(e.what());
-  } catch (const nlohmann::json::exception& e) {
+  } catch (const std::exception& e) {
+    // Invalid templates (inja::InjaError), JSON errors and anything a template
+    // can cause, such as running out of memory with range(99999999999).
     throw TemplateError(e.what());
   }
 }

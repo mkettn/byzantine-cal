@@ -125,6 +125,9 @@ int main(int argc, char** argv) {
   } catch (const bcal::TemplateError& e) {
     spdlog::error("template error: {}", e.what());
     return 1;
+  } catch (const std::exception& e) {
+    spdlog::error("cannot generate the calendar: {}", e.what());
+    return 1;
   }
 
   // Any failure to write is an error, also one that only shows when flushing.

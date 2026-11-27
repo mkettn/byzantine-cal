@@ -235,6 +235,11 @@ int main() {
     CHECK(render("{{ replace(\"a|b|c\", \"|\", \"\\\\|\") }}") == "a\\|b\\|c");
     CHECK(throws<bcal::TemplateError>([&] { render("{% if %}"); }));
     CHECK(throws<bcal::TemplateError>([&] { render("{{ no_such_value }}"); }));
+    // any failure caused by a template, e.g. a list that cannot be allocated
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ range(99999999999999) }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ 1 / 0 }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ escape_markdown() }}"); }));
+    CHECK(throws<bcal::TemplateError>([&] { render("{{ upper(1) }}"); }));
   }
 
   // --- backends read their template from a file
