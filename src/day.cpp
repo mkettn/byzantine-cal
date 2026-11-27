@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <sstream>
 #include <string_view>
+#include <vector>
 
 namespace bcal {
 
@@ -89,6 +91,21 @@ DayResult parse_pascha(const std::string& t) {
   return {r, {}};
 }
 
+std::vector<std::string> split(const std::string& s, char sep) {
+  std::vector<std::string> out;
+  std::stringstream ss(s);
+  std::string part;
+  while (std::getline(ss, part, sep)) out.push_back(part);
+  if (!s.empty() && s.back() == sep) out.emplace_back();
+  return out;
+}
+
+std::string trim(const std::string& s) {
+  auto b = s.find_first_not_of(" \t");
+  if (b == std::string::npos) return {};
+  return s.substr(b, s.find_last_not_of(" \t") - b + 1);
+}
+
 }  // namespace
 
 std::optional<int> parse_weekday(const std::string& name) {
@@ -106,6 +123,49 @@ DayResult parse_day(const std::string& text) {
     return fail("whitespace not allowed in date \"" + text + "\"");
   return (text[0] == 'p' || text[0] == 'P') ? parse_pascha(lower(text))
                                             : parse_solar(text);
+}
+
+// Weekday key grammar: either one range "mon..fri" (wrapping allowed, e.g.
+// "sat..mon") or a comma list of single days "wed,fri" / "sat". Lowercase only.
+// Returns the weekdays (0 = mon .. 6 = sun) it covers; sets err on failure.
+std::set<int> parse_weekday_key(const std::string& key, std::string& err) {
+  std::set<int> days;
+  auto one = [&](const std::string& name) -> int {
+    if (name.empty()) return -1;
+    auto lc = name;
+    std::transform(lc.begin(), lc.end(), lc.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (lc != name) return -1;  // must be lowercase
+    return parse_weekday(name).value_or(-1);
+  };
+  if (key.empty()) {
+    err = "empty weekday key";
+    return days;
+  }
+  auto pos = key.find("..");
+  if (pos != std::string::npos) {
+    int a = one(key.substr(0, pos)), b = one(key.substr(pos + 2));
+    if (a < 0 || b < 0 || key.find(',') != std::string::npos) {
+      err = "invalid weekday range \"" + key +
+            "\" (write e.g. mon..fri, lowercase, no spaces or commas)";
+      return days;
+    }
+    for (int d = a;; d = (d + 1) % 7) {
+      days.insert(d);
+      if (d == b) break;
+    }
+    return days;
+  }
+  for (const auto& item : split(key, ',')) {
+    int d = one(trim(item));
+    if (d < 0) {
+      err = "unknown weekday \"" + trim(item) + "\" in \"" + key +
+            "\" (use lowercase mon tue wed thu fri sat sun)";
+      return {};
+    }
+    days.insert(d);
+  }
+  return days;
 }
 
 }  // namespace bcal

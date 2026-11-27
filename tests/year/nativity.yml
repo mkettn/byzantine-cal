@@ -1,0 +1,4 @@
+- "25.12": {name: Nativity, rule: no_fish}
+- "p": {name: Pascha, rule: no_fast}
+- "15.11..24.12":
+    mon..sun: {rule: no_meat, note: fast}

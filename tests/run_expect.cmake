@@ -1,4 +1,8 @@
-# Usage: cmake -DEXE=<exe> -DARGS=<a;b> -DCODE=<exit code> [-DREGEX=<regex>] -P run_expect.cmake
+# Usage: cmake -DEXE=<exe> -DARGS=<a|b> -DCODE=<exit code> [-DREGEX=<regex>] -P run_expect.cmake
+# Arguments are separated by "|".
+if(DEFINED ARGS)
+  string(REPLACE "|" ";" ARGS "${ARGS}")
+endif()
 execute_process(COMMAND ${EXE} ${ARGS}
                 RESULT_VARIABLE rc OUTPUT_VARIABLE out ERROR_VARIABLE err)
 if(NOT rc EQUAL CODE)

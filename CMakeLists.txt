@@ -13,7 +13,8 @@ find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(docopt REQUIRED)
 
-add_library(bcal STATIC src/day.cpp src/validator.cpp)
+add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp
+            src/year_calendar.cpp)
 target_include_directories(bcal PUBLIC src)
 target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog)
 target_compile_options(bcal PRIVATE -Wall -Wextra -Wpedantic)
@@ -34,6 +35,13 @@ if(BUILD_TESTING)
              COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
                      -DARGS=${CMAKE_CURRENT_SOURCE_DIR}/tests/${file}
                      -DCODE=${code} "-DREGEX=${regex}" -P ${RUNNER})
+  endfunction()
+
+  # Several command line arguments, separated by "|".
+  function(bcal_expect_args name args code regex)
+    add_test(NAME ${name}
+             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
+                     "-DARGS=${args}" -DCODE=${code} "-DREGEX=${regex}" -P ${RUNNER})
   endfunction()
 
   file(GLOB valid_files CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/valid/*.yml)
@@ -60,6 +68,17 @@ if(BUILD_TESTING)
   bcal_expect(invalid_yaml_syntax invalid/yaml_syntax.yml 1 "YAML syntax error")
   bcal_expect(error_missing_file invalid/nope.yml 2 "cannot read")
   bcal_expect(error_directory invalid 2 "cannot read")
+  set(NATIVITY ${CMAKE_CURRENT_SOURCE_DIR}/tests/year/nativity.yml)
+  bcal_expect_args(year_plain "--year=2026|${NATIVITY}" 0 "2026-12-25.+Nativity")
+  bcal_expect_args(year_offset "--year=2026|--offset=13|${NATIVITY}" 0 "2026-01-07.+Nativity")
+  bcal_expect_args(year_offset_negative "-y|2026|-o|-13|${NATIVITY}" 0 "2026-12-12.+Nativity")
+  bcal_expect_args(year_pascha "--year=2026|--offset=13|${NATIVITY}" 0 "2026-04-12.+Pascha")
+  bcal_expect_args(year_data "--year=2026|${NATIVITY}" 0 "2026-11-16.+note: fast")
+  bcal_expect_args(year_not_a_number "--year=abc|${NATIVITY}" 3 "whole numbers")
+  bcal_expect_args(year_out_of_range "--year=1200|${NATIVITY}" 3 "1583")
+  bcal_expect_args(offset_out_of_range "--year=2026|--offset=400|${NATIVITY}" 3 "-365")
+  bcal_expect_args(offset_without_year "--offset=13|${NATIVITY}" 3 "needs --year")
+  bcal_expect_args(year_invalid_file "--year=2026|${CMAKE_CURRENT_SOURCE_DIR}/tests/invalid/bad_day.yml" 1 "does not exist")
   add_test(NAME error_usage COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
            -DCODE=3 -P ${RUNNER})
 endif()
