@@ -1,11 +1,8 @@
 #include "validator.h"
 
-#include <algorithm>
 #include <array>
-#include <cctype>
 #include <filesystem>
 #include <set>
-#include <sstream>
 
 #include "day.h"
 
@@ -25,21 +22,6 @@ void add(Report& r, const YAML::Node& n, std::string msg) {
   r.errors.push_back({line_of(n), std::move(msg)});
 }
 
-std::vector<std::string> split(const std::string& s, char sep) {
-  std::vector<std::string> out;
-  std::stringstream ss(s);
-  std::string part;
-  while (std::getline(ss, part, sep)) out.push_back(part);
-  if (!s.empty() && s.back() == sep) out.emplace_back();
-  return out;
-}
-
-std::string trim(const std::string& s) {
-  auto b = s.find_first_not_of(" \t");
-  if (b == std::string::npos) return {};
-  return s.substr(b, s.find_last_not_of(" \t") - b + 1);
-}
-
 void check_day(Report& r, const YAML::Node& at, const std::string& text) {
   auto res = parse_day(text);
   if (!res.day) add(r, at, "invalid date: " + res.error);
@@ -55,47 +37,20 @@ void check_rule(Report& r, const YAML::Node& at, const YAML::Node& v) {
                    "\" (use no_fast, no_meat, no_dairy, no_fish, no_oil)");
 }
 
-// Weekday key grammar: either one range "mon..fri" (wrapping allowed, e.g.
-// "sat..mon") or a comma list of single days "wed,fri" / "sat". Lowercase only.
-// Returns the weekdays (0 = mon .. 6 = sun) it covers; sets err on failure.
-std::set<int> weekdays_of(const std::string& key, std::string& err) {
-  std::set<int> days;
-  auto one = [&](const std::string& name) -> int {
-    if (name.empty()) return -1;
-    auto lc = name;
-    std::transform(lc.begin(), lc.end(), lc.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-    if (lc != name) return -1;  // must be lowercase
-    return parse_weekday(name).value_or(-1);
-  };
-  if (key.empty()) {
-    err = "empty weekday key";
-    return days;
+// A weekday rule is a rule name ("no_meat") or a map with a required `rule`
+// and arbitrary further fields ({rule: no_meat, note: ...}).
+void check_range_rule(Report& r, const YAML::Node& v) {
+  if (v.IsMap()) {
+    int rules = 0;
+    for (const auto& kv : v)
+      if (kv.first.IsScalar() && kv.first.Scalar() == "rule") {
+        ++rules;
+        check_rule(r, kv.second, kv.second);
+      }
+    if (rules == 0) add(r, v, "rule with data needs a \"rule\" field");
+    return;
   }
-  auto pos = key.find("..");
-  if (pos != std::string::npos) {
-    int a = one(key.substr(0, pos)), b = one(key.substr(pos + 2));
-    if (a < 0 || b < 0 || key.find(',') != std::string::npos) {
-      err = "invalid weekday range \"" + key +
-            "\" (write e.g. mon..fri, lowercase, no spaces or commas)";
-      return days;
-    }
-    for (int d = a;; d = (d + 1) % 7) {
-      days.insert(d);
-      if (d == b) break;
-    }
-    return days;
-  }
-  for (const auto& item : split(key, ',')) {
-    int d = one(trim(item));
-    if (d < 0) {
-      err = "unknown weekday \"" + trim(item) + "\" in \"" + key +
-            "\" (use lowercase mon tue wed thu fri sat sun)";
-      return {};
-    }
-    days.insert(d);
-  }
-  return days;
+  check_rule(r, v, v);
 }
 
 void check_range(Report& r, const YAML::Node& key_node, const std::string& key,
@@ -130,9 +85,9 @@ void check_range(Report& r, const YAML::Node& key_node, const std::string& key,
       continue;
     }
     std::string err;
-    weekdays_of(kv.first.Scalar(), err);  // validation only; later keys win
+    parse_weekday_key(kv.first.Scalar(), err);  // validation only; later keys win
     if (!err.empty()) add(r, kv.first, err);
-    check_rule(r, kv.second, kv.second);
+    check_range_rule(r, kv.second);
   }
 }
 
@@ -155,15 +110,13 @@ void check_fixed(Report& r, const YAML::Node& key_node, const std::string& key,
         add(r, kv.first, "field names must be text");
         continue;
       }
-      const auto& k = kv.first.Scalar();
-      if (k == "rule")
-        check_rule(r, kv.second, kv.second);
-      else if (k != "name")
-        add(r, kv.first, "unknown field \"" + k + "\" (use name, rule)");
+      // `rule` is checked; any other field is arbitrary data.
+      if (kv.first.Scalar() == "rule") check_rule(r, kv.second, kv.second);
     }
     return;
   }
-  add(r, key_node, "entry for \"" + key + "\" must be a name or {name, rule}");
+  add(r, key_node,
+      "entry for \"" + key + "\" must be a name or {name, rule, ...}");
 }
 
 }  // namespace
@@ -205,27 +158,33 @@ Report validate(const YAML::Node& root) {
   return r;
 }
 
-Report validate_file(const std::string& path) {
+YAML::Node load_file(const std::string& path, Report& report) {
   try {
     namespace fs = std::filesystem;
     if (!fs::is_regular_file(path)) throw YAML::BadFile(path);
     auto docs = YAML::LoadAllFromFile(path);
-    if (docs.empty()) return validate(YAML::Node());
+    if (docs.empty()) return YAML::Node();
     if (docs.size() > 1) {
-      Report r;
-      r.errors.push_back({0, "file has " + std::to_string(docs.size()) +
-                                 " YAML documents; use exactly one (no \"---\" separators)"});
-      return r;
+      report.errors.push_back(
+          {0, "file has " + std::to_string(docs.size()) +
+                  " YAML documents; use exactly one (no \"---\" separators)"});
+      return YAML::Node();
     }
-    return validate(docs.front());
+    return docs.front();
   } catch (const YAML::BadFile&) {
     throw;
   } catch (const YAML::Exception& e) {
-    Report r;
-    r.errors.push_back({e.mark.is_null() ? 0 : e.mark.line + 1,
-                        std::string("YAML syntax error: ") + e.msg});
-    return r;
+    report.errors.push_back({e.mark.is_null() ? 0 : e.mark.line + 1,
+                             std::string("YAML syntax error: ") + e.msg});
+    return YAML::Node();
   }
+}
+
+Report validate_file(const std::string& path) {
+  Report r;
+  auto root = load_file(path, r);
+  if (!r.ok()) return r;
+  return validate(root);
 }
 
 }  // namespace bcal
