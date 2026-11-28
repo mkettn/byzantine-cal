@@ -13,19 +13,14 @@ struct Issue {
 
 struct Report {
   std::vector<Issue> errors;
-  int entries = 0;  // number of date / range entries checked
+  int entries = 0;
   bool ok() const { return errors.empty(); }
 };
 
-// Validates a parsed calendar document (a sequence of maps).
 Report validate(const YAML::Node& root);
 
-// Loads the single YAML document of a file. YAML syntax errors and files with
-// several documents are added to `report` (and a null node is returned);
-// unreadable files (or directories) throw YAML::BadFile.
 YAML::Node load_file(const std::string& path, Report& report);
 
-// load_file + validate.
 Report validate_file(const std::string& path);
 
 bool is_valid_rule(const std::string& rule);
