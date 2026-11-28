@@ -17,3 +17,7 @@ C++20 CLI for Orthodox fasting calendars. It parses and validates the dates and 
 
 Dates are `DD.MM` (the old `MMDD` form is rejected).
 Keep new dependencies in their own `cmake/Find<lib>.cmake`.
+
+Documentation: `README.md` only has the build, install and run instructions. Everything else is in
+`docs/` (`dates.md`: dates, ranges, the calendar file and how a year is generated; `configuration.md`;
+`templates.md`; `language.md`). Change the matching file when behaviour changes.
