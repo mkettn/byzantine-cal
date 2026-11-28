@@ -78,7 +78,8 @@ int main(int argc, char** argv) {
     std::puts("byzantine-cal " BCAL_VERSION);
     return 0;
   } catch (const docopt::DocoptArgumentError& e) {
-    spdlog::error("{}\n\n{}", e.what(), USAGE);
+    spdlog::error("{}", e.what());
+    std::fputs(USAGE, stderr);
     return 3;
   } catch (const docopt::DocoptLanguageError& e) {
     spdlog::error("{}", e.what());
