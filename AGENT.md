@@ -1,23 +1,29 @@
-# Agent Guidelines for byzantine-cal
+# Agent guidelines for byzantine-cal
 
-C++20 CLI for Orthodox fasting calendars. It parses and validates the dates and date ranges of a calendar YAML file and generates the calendar of a year from it.
+C++20 command line tool that checks a fasting calendar file and generates the calendar of a year from it
+with templates.
 
-- `src/day.*` - date syntax parser (`DD.MM`, `p[+-]N[d|w][<|>wd]`)
-- `src/validator.*` - checks the YAML structure, ranges, weekdays, rules
-- `src/pascha.*` - Orthodox Pascha (Gregorian date) for a year
-- `src/year_calendar.*` - `YearCalendar(year, offset_days)`: all days of a year; the constructor calculates Pascha; `add_day()` / `add_range()` attach a data string (later calls win; `offset_days` shifts fixed dates, leaping over New Year; no YAML in this class)
-- `src/calendar_loader.*` - `load_year_calendar()`: calendar YAML -> `YearCalendar` (data = rule as one-line YAML)
-- `src/template_backend.*` - `calendar_to_json()` (YearCalendar -> nlohmann JSON) and `render_template()` (inja), `TemplateBackend` (reads the template file whose path it is given) and `MarkdownBackend` (template `markdown.inja`); every output format is a template
-- `src/byzantine_cal_config.*` - `ByzantineCalConfig`: reads the config file (`-C`, else `./bcal.yaml`, else the installed `config.yaml`); `template_dir` lists the template directories (absolute or relative to the config file); `find_template(name)` returns the path of the template file (throws if there is none), which goes straight into a backend; unknown options are an error; also `lang_dir` (language file directories) and `language`; `find_language_file(name)` returns `<name>.yaml` from the first `lang_dir` that has it
-- `src/language.*` - `Language`: month/weekday names and `ui` texts from a language file (the value of `language:` / `--lang` is the file name without `.yaml`, not checked; no environment lookup); its `fallback` language is read first, keys of the file replace those of the fallback, every file is read once with a warning for a circular reference
-- `config/config.yaml`, `tpl/*.inja`, `lang/*.yaml` - installed to `<prefix>/lib/byzantine-cal` (prefix = `CMAKE_INSTALL_PREFIX`, compiled in as `BCAL_CONFIG_FILE`); the program finds its templates through the config
-- `src/main.cpp` - docopt CLI, spdlog output
-- `cmake/Find*.cmake` - one module per dependency (find_package, else FetchContent)
-- `tests/` - `test_main.cpp` (unit); `valid/*.yml` must pass, `invalid/*.yml` need an exact exit code and message (see CMakeLists.txt, `run_expect.cmake`)
+## Folders
 
-Dates are `DD.MM` (the old `MMDD` form is rejected).
-Keep new dependencies in their own `cmake/Find<lib>.cmake`.
+- `src/` the code: the library (`bcal`) and `main.cpp`, the command line
+- `tpl/` templates (inja), one per output format
+- `lang/` language files: translations of the generated files
+- `config/` the configuration that is installed with the program
+- `docs/` the documentation, the one place for it
+- `cmake/` one `Find<lib>.cmake` per dependency: an installed copy, else FetchContent
+- `tests/` `test_main.cpp` (unit tests), fixtures, and the scripts of the command line tests (registered in `CMakeLists.txt`)
+- `.github/` CI
 
-Documentation: `README.md` only has the build, install and run instructions. Everything else is in
-`docs/` (`dates.md`: dates, ranges, the calendar file and how a year is generated; `configuration.md`;
-`templates.md`; `language.md`). Change the matching file when behaviour changes.
+## Rules
+
+- The user interface of the application (command line, messages, logs) is English. Translation is
+  for the generated files only.
+- Documentation is in `docs/`. `README.md` only has build and run instructions. Comments in `src/`
+  are 1-2 lines. Less is more.
+- Don't be overly defensive when programming.
+- Show messages with spdlog. Signal errors with exceptions.
+- No environment variables.
+- A new setting is a new key in the config file, and a new command line parameter if suitable.
+- Keep PRs short: at most 300 new lines is the goal, more is ok. At about 500, consider two PRs.
+- When a PR is implemented: start a review agent, fix the findings, do another round, and mark the PR
+  ready if it is fine.
