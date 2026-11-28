@@ -575,7 +575,9 @@ int main() {
     CHECK(bad("b8.md", "---\nname: A\nfeast_days:\n  - \"01.01\": \"\"\n---\n", "b8.md:4: the title"));
     CHECK(bad("b9.md", "---\nname: A\nfeast_days:\n  - [1]\n---\n", "b9.md:4: a feast day must be"));
     CHECK(bad("b14.md", "---\nname: A\nlang:\nfeast_days: [\"01.01\"]\n---\n", "b14.md:3: lang must be"));
-    CHECK(bcal::load_saint(sb.write("l.md", "---\nname: A\nlang: de_DE\nfeast_days: [\"01.01\"]\n---\n")).lang == "de_DE" && s.lang.empty());
+    CHECK(bcal::load_saint(sb.write("l.md", "---\nname: A\nlang: de_DE\nfeast_days: [\"01.01\"]\n---\n")).lang == "de_DE");
+    CHECK(bcal::load_saint(sb.write("nl.md", "---\nname: A\nfeast_days: [\"01.01\"]\n---\n")).lang.empty());
+    CHECK(bad("b15.md", "---\nname: A\nfeast_days: [\"01.01\"]\nlang: [de]\n---\n", "b15.md:4: lang must be"));
     CHECK(bad("b10.md", "---\n- a\n---\n", "must be a map"));
     CHECK(bad("b11.md", "---\nname: A\nfeast_days:\n  - \"01.01\":\n---\n", "b11.md:4: the title"));
     CHECK(bad("b12.md", "---\nname:\nfeast_days: [\"01.01\"]\n---\n", "b12.md:2: name must be"));

@@ -36,7 +36,8 @@ ignored because of its `lang`.
 
 ## From C++
 
-`load_saint()` and `load_saints()` (`src/saint.h`) read a file and a directory into `Saint`s with the
-`name`, the `lang`, the `description`, the `feasts` (a `Day` and a `title`) and the `file`. `load_saints()` takes the language
-to select as an optional second argument. They throw
-`std::invalid_argument` for an invalid file and `ConfigFileError` for one that cannot be read.
+`load_saint()` and `load_saints()` (`src/saint.h`) read a file and a directory into `Saint`s with
+the `name`, the `lang`, the `description`, the `feasts` (a `Day` and a `title`) and the `file`.
+`load_saints()` takes the language to select as an optional second argument, compared exactly
+(`de_de` is not `de_DE`). They throw `std::invalid_argument` for an invalid file and
+`ConfigFileError` for one that cannot be read.
