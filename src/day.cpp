@@ -156,4 +156,10 @@ Weekdays parse_weekday_key(const std::string& key, std::string& err) {
   return days;
 }
 
+bool ends_before_start(const Day& start, const Day& end) {
+  return start.kind == Day::Kind::Pascha && end.kind == Day::Kind::Pascha &&
+         !start.prev_weekday && !start.next_weekday && !end.prev_weekday && !end.next_weekday &&
+         end.offset_days < start.offset_days;
+}
+
 }  // namespace bcal

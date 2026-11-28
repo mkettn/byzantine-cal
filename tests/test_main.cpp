@@ -577,6 +577,16 @@ int main() {
     CHECK(bad("b9.md", "---\nname: A\ndays:\n  - [1]\n---\n", "b9.md:4: a day must be"));
     CHECK(load_one(sb.write("t.md", "---\nname: A\ntype: event\ndays: [\"01.01\"]\n---\n")).type == "event");
     CHECK(bad("b16.md", "---\nname: A\ntype: \"\"\ndays: [\"01.01\"]\n---\n", "b16.md:3: type must be"));
+    {
+      const auto r = load_one(sb.write("r.md", "---\nname: R\ndays:\n  - \"20.05..25.05\": span\n    \"p..p+7\": week\n  - \"30.12..02.01\"\n  - \"09.05\"\n---\n"));
+      CHECK(r.days.size() == 4 && r.days[0].end && r.days[0].end->day == 25 && r.days[0].title == "span");
+      CHECK(r.days[1].day.kind == bcal::Day::Kind::Pascha && r.days[1].end->offset_days == 7 && r.days[2].end->month == 1 && !r.days[3].end);
+    }
+    CHECK(bad("r1.md", "---\nname: A\ndays: [\"01.01..02.01..03.01\"]\n---\n", "r1.md:3: range \"01.01..02.01..03.01\" has more"));
+    CHECK(bad("r2.md", "---\nname: A\ndays: [\"01.01..31.04\"]\n---\n", "r2.md:3: invalid date"));
+    CHECK(bad("r3.md", "---\nname: A\ndays: [\"p+7..p\"]\n---\n", "r3.md:3: range \"p+7..p\" ends before it starts"));
+    CHECK(bad("r4.md", "---\nname: A\ndays: [\"..02.01\"]\n---\n", "r4.md:3: invalid date"));
+    CHECK(!bad("r5.md", "---\nname: A\ndays: [\"p+7<mon..p\"]\n---\n", "ends before"));   // a weekday shift is not checked
     CHECK(bad("b14.md", "---\nname: A\nlang:\ndays: [\"01.01\"]\n---\n", "b14.md:3: lang must be"));
     CHECK(load_one(sb.write("l.md", "---\nname: A\nlang: de_DE\ndays: [\"01.01\"]\n---\n")).lang == "de_DE");
     CHECK(load_one(sb.write("nl.md", "---\nname: A\ndays: [\"01.01\"]\n---\n")).lang.empty());
@@ -683,6 +693,14 @@ int main() {
     source.add_entry(entry("Moved", {{D("01.01"), ""}}));
     target = std::move(source);
     CHECK(target.year() == 2027 && target.at(1, 1).entries[0]->name == "Moved");
+    // ranges: on every day, the ends included, shifted, over New Year, once per day
+    bcal::YearCalendar r(2026, 13);
+    r.add_entry(entry("Span", {{D("25.12"), "", D("27.12")}, {D("29.12"), "", D("02.01")}, {D("p"), "", D("p+1")}}));
+    CHECK(r.at(1, 7).entries.size() == 1 && r.at(1, 9).entries.size() == 1 && r.at(1, 10).entries.empty());   // 25.-27.12 + 13
+    CHECK(r.at(1, 11).entries.size() == 1 && r.at(1, 15).entries.size() == 1 && r.at(1, 16).entries.empty());  // 29.12.-02.01 + 13
+    CHECK(r.at(4, 12).entries.size() == 1 && r.at(4, 13).entries.size() == 1 && r.at(4, 14).entries.empty());
+    r.add_entry(entry("Overlap", {{D("25.12"), "", D("26.12")}, {D("26.12"), "", D("27.12")}}));
+    CHECK(r.at(1, 8).entries.size() == 2 && r.at(1, 8).entries[1]->name == "Overlap");   // listed once
     // a day of the previous year's date shifted into this year
     bcal::YearCalendar y(2027, 13);
     y.add_entry(entry("Dec", {{D("25.12"), ""}}));

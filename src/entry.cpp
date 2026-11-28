@@ -66,9 +66,22 @@ Entry parse_entry(const fs::path& file, const YAML::Node& root, int base) {
     fail(file, key_line(root, "days", base), "days must be a list with at least one date");
 
   auto add = [&](const YAML::Node& at, const std::string& date, const std::string& title) {
-    const auto parsed = parse_day(date);
-    if (!parsed.day) fail(file, line_of(at, base), "invalid date: " + parsed.error);
-    entry.days.push_back({*parsed.day, title});
+    const auto pos = date.find("..");
+    auto parse = [&](const std::string& text) {
+      const auto parsed = parse_day(text);
+      if (!parsed.day) fail(file, line_of(at, base), "invalid date: " + parsed.error);
+      return *parsed.day;
+    };
+    if (pos == std::string::npos) {
+      entry.days.push_back({parse(date), title, std::nullopt});
+      return;
+    }
+    if (date.find("..", pos + 2) != std::string::npos)
+      fail(file, line_of(at, base), "range \"" + date + "\" has more than one \"..\"");
+    const Day start = parse(date.substr(0, pos)), end = parse(date.substr(pos + 2));
+    if (ends_before_start(start, end))
+      fail(file, line_of(at, base), "range \"" + date + "\" ends before it starts");
+    entry.days.push_back({start, title, end});
   };
   for (const auto& item : days) {
     if (item.IsScalar()) {

@@ -74,7 +74,7 @@ void YearCalendar::add_range(const Day& start, const Day& end,
 const Entry& YearCalendar::add_entry(Entry entry) {
   const Entry& kept = entries_.emplace_back(std::move(entry));
   for (const EntryDay& entry_day : kept.days)
-    place(entry_day.day, entry_day.day, all_weekdays(), [&](CalendarDay& day) {
+    place(entry_day.day, entry_day.end.value_or(entry_day.day), all_weekdays(), [&](CalendarDay& day) {
       if (std::find(day.entries.begin(), day.entries.end(), &kept) == day.entries.end())
         day.entries.push_back(&kept);   // once, also with two days of the entry on the same date
     });

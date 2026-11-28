@@ -28,6 +28,10 @@ inline Weekdays all_weekdays() { return {0, 1, 2, 3, 4, 5, 6}; }
 
 std::optional<int> parse_weekday(const std::string& name);
 
+// A range of Pascha-relative days that ends before it starts can never match (not checked with a
+// weekday shift, which can move the ends). A range of fixed dates may cross New Year.
+bool ends_before_start(const Day& start, const Day& end);
+
 Weekdays parse_weekday_key(const std::string& key, std::string& err);
 
 }  // namespace bcal

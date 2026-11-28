@@ -9,8 +9,9 @@
 namespace bcal {
 
 struct EntryDay {
-  Day day;
-  std::string title;  // empty without one
+  Day day;                 // the first day
+  std::string title;       // empty without one
+  std::optional<Day> end;  // the last day of a range
 };
 
 struct Entry {
