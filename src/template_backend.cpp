@@ -123,7 +123,7 @@ nlohmann::json calendar_to_json(const YearCalendar& calendar, const Language& la
   }
   return {{"year", calendar.year()},
           {"offset_days", calendar.offset_days()},
-          {"pascha", day_to_json({calendar.pascha(), std::nullopt}, language)["date"]},
+          {"pascha", day_to_json({calendar.pascha(), std::nullopt, {}}, language)["date"]},
           {"ui", language.ui()},
           {"days", std::move(days)},
           {"months", std::move(months)}};

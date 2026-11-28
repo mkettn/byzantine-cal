@@ -122,6 +122,11 @@ YAML.
 - **Days** are `CalendarDay`s: the `date`, the `weekday()`, `has_rule()` and `data`, a
   `std::optional<std::string>` that is empty without an entry. `size()` is 365 or 366, and `pascha()` is the Gregorian date of
   Pascha, not shifted by the offset.
+- **Saints:** `add_saint()` hands a `Saint` ([Saints](saints.md)) to the calendar, which keeps it, and
+  puts it on the days of its feasts, with the same rules for the offset, Pascha-relative dates and
+  New Year as `add_day()`. A `CalendarDay` has the list `saints` of `SaintFeast`s, two read-only pointers
+  each: the `saint` and the `feast` that is celebrated. The pointers belong to the calendar, so a
+  `YearCalendar` can be moved but not copied.
 - **Errors:** the constructor throws `std::invalid_argument` for a year outside 1..9999, and `at()`
   throws `std::out_of_range` for a date that is not in the year.
 

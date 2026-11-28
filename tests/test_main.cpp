@@ -616,6 +616,38 @@ int main() {
     CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints"); }));
   }
 
+  {
+    auto saint = [](const char* name, std::vector<bcal::Feast> feasts) {
+      bcal::Saint s;
+      s.name = name;
+      s.feasts = std::move(feasts);
+      return s;
+    };
+    bcal::YearCalendar c(2026, 13);
+    const bcal::Saint& n = c.add_saint(saint("Nicholas", {{D("25.12"), "feast"}, {D("p+7"), "relics"}, {D("30.02"), "never"}}));
+    c.add_saint(saint("Ann", {{D("25.12"), ""}, {D("01.01"), ""}}));
+    CHECK(n.name == "Nicholas" && n.feasts.size() == 3);
+    CHECK(c.at(1, 7).saints.size() == 2 && c.at(1, 7).saints[0].saint == &n);      // 25.12 + 13 days, in the order added
+    CHECK(c.at(1, 7).saints[0].feast == &n.feasts[0] && c.at(1, 7).saints[0].feast->title == "feast");
+    CHECK(c.at(1, 7).saints[1].saint->name == "Ann" && c.at(1, 14).saints[0].saint->name == "Ann");  // 01.01 + 13
+    CHECK(c.at(4, 19).saints.size() == 1 && c.at(4, 19).saints[0].feast->title == "relics");        // Pascha 12.04 + 7
+    CHECK(c.at(1, 8).saints.empty() && !c.at(1, 7).has_rule());                                      // separate from the rules
+    c.add_day(D("25.12"), "x");
+    CHECK(c.at(1, 7).has_rule() && c.at(1, 7).saints.size() == 2);
+    int total = 0;
+    for (const auto& d : c) total += static_cast<int>(d.saints.size());
+    CHECK(total == 4);                                                                               // 30.02 never exists
+    // the saints survive a move, the days still point to them
+    bcal::YearCalendar moved(std::move(c));
+    CHECK(moved.at(1, 7).saints[0].saint->name == "Nicholas" && moved.at(1, 7).saints[0].saint->feasts.size() == 3);
+    // a feast of the previous year's date shifted into this year
+    bcal::YearCalendar y(2027, 13);
+    y.add_saint(saint("Dec", {{D("25.12"), ""}}));
+    y.add_saint(saint("Prev", {{D("31.12"), ""}}));
+    CHECK(y.at(1, 7).saints.size() == 1 && y.at(1, 13).saints.size() == 1);
+    CHECK(y.at(12, 25).saints.empty() && y.at(12, 31).saints.empty());   // 25.12 and 31.12 of 2027 are in 2028
+  }
+
   // --- invalid input / parameters
   CHECK(throws<std::invalid_argument>([] { cal("- \"31.04\": x\n", 2026); }));
   for (int bad : {0, 10000}) CHECK(throws<std::invalid_argument>([&] { cal("[]", bad); }));
