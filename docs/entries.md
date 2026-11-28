@@ -52,8 +52,12 @@ days: ["09.07"]
   (one or more pairs). The title is the reason for the day, and is empty for a plain date. The same
   date with two titles goes in two items.
 - **Dates** have the syntax of the [calendar file](dates.md): `DD.MM` and Pascha-relative dates such
-  as `p+7`, but no ranges. Put them in quotes. They are in the calendar that is chosen on the
-  command line, so `--old` shifts them like the dates of the fasting rules.
+  as `p+7`. Put them in quotes. They are in the calendar that is chosen on the command line, so
+  `--old` shifts them like the dates of the fasting rules.
+- **Ranges** such as `"20.05..25.05"` or `"p..p+7"` put the entry on every day from the first to the
+  last, ends included, with the rules of the ranges in the [calendar file](dates.md): they may
+  cross New Year, a range with a date that does not exist in the year (`29.02`) has no days, and
+  a Pascha-relative range must not end before it starts. There are no weekday rules.
 
 An invalid file is an error with the file and line, like an invalid calendar file, also if its
 entries are ignored because of their `lang`.
@@ -61,7 +65,7 @@ entries are ignored because of their `lang`.
 ## From C++
 
 `load_entry_file()` and `load_entries()` (`src/entry.h`) read a file and a directory into `Entry`s
-with the `name`, `type`, `lang`, `description`, `days` (a `Day` and a `title`) and the `file`.
+with the `name`, `type`, `lang`, `description`, `days` (a `Day`, an optional `end` for a range and a `title`) and the `file`.
 `load_entries()` takes the language to select as an optional second argument, compared exactly
 (`de_de` is not `de_DE`). They throw `std::invalid_argument` for an invalid file and
 `ConfigFileError` for one that cannot be read.

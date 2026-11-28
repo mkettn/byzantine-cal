@@ -103,10 +103,7 @@ class Loader {
     const Day start = day(at, start_text), end = day(at, end_text);
     if (!value.IsMap())
       fail(at, "range \"" + key + "\" needs weekday rules, e.g. mon..fri: no_meat");
-    // Pascha-relative range that ends before it starts can never match.
-    if (start.kind == Day::Kind::Pascha && end.kind == Day::Kind::Pascha &&
-        !start.prev_weekday && !start.next_weekday && !end.prev_weekday && !end.next_weekday &&
-        end.offset_days < start.offset_days)
+    if (ends_before_start(start, end))
       fail(at, "range \"" + key + "\" ends before it starts");
     if (value.size() == 0) fail(at, "range \"" + key + "\" has no weekday rules");
 
