@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ year }}</title>
+</head>
+<body>
+<h1>{{ year }}</h1>
+<p>{{ escape_html(ui.pascha) }}: {{ pascha }}</p>
+%% for month in months
+%% if month.rule_count > 0
+<h2>{{ escape_html(month.name) }}</h2>
+<table>
+<thead>
+<tr><th>{{ escape_html(ui.date) }}</th><th>{{ escape_html(ui.weekday) }}</th><th>{{ escape_html(ui.data) }}</th></tr>
+</thead>
+<tbody>
+%% for day in month.days
+%% if day.has_rule
+<tr><td>{{ day.date }}</td><td>{{ escape_html(day.weekday_name) }}</td><td>{{ escape_html(day.data) }}</td></tr>
+%% endif
+%% endfor
+</tbody>
+</table>
+%% endif
+%% endfor
+</body>
+</html>

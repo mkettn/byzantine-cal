@@ -2,8 +2,8 @@
 
 The output is produced by a *backend* that renders the calendar of a year with a template. The
 templates use [inja](https://github.com/pantor/inja), a template engine with a Jinja-like syntax. The
-program has two formats, chosen with `--format`: Markdown (`markdown.inja`, the default) and iCalendar
-(`ics`, `ics.inja`). Another format (HTML, ...) needs another template and a backend class for it,
+program has three formats, chosen with `--format`: Markdown (`markdown.inja`, the default), HTML
+(`html.inja`) and iCalendar (`ics`, `ics.inja`). Another format needs another template and a backend class for it,
 see below.
 
 ## The Markdown template
@@ -14,6 +14,11 @@ first in `template_dir`.
 
 The result has a heading with the year, the date of Pascha, and a table for each month that has a
 day with an entry.
+
+## The HTML template
+
+`tpl/html.inja` makes a complete HTML page with the same content as the Markdown one: the year, the
+date of Pascha, and a table for each month that has a day with an entry.
 
 ## The iCalendar template
 
@@ -59,6 +64,8 @@ backend adds:
 - **`escape_markdown(text)`** puts a backslash before every character that has a meaning in
   Markdown, and turns newlines into `<br>`. Use it for anything that is not controlled by the
   template, which is the data and the language texts.
+- **`escape_html(text)`** escapes `&`, `<`, `>` and both quotes, and turns newlines into `<br>`. Use
+  it for the data and the language texts.
 - **`escape_ics(text)`** escapes `\`, `;`, `,` and newlines for an iCalendar text value.
 - **Whitespace:** a block (`{% ... %}`) that is alone on its line leaves no empty line behind.
 - **Line statements** start with `%%`. Inja's default, `##`, would be a Markdown heading.
@@ -86,8 +93,9 @@ argument) is an error, see the exit status in the [README](../README.md#run).
 ## From C++
 
 The backends are in `src/template_backend.h`. `TemplateBackend` reads the template from the file
-whose path it is given. `MarkdownBackend` and `IcsBackend` are the two formats, and their templates are called
-`MarkdownBackend::kTemplateFile` (`markdown.inja`) and `IcsBackend::kTemplateFile` (`ics.inja`).
+whose path it is given. `MarkdownBackend`, `HtmlBackend` and `IcsBackend` are the formats, and their templates are called
+`MarkdownBackend::kTemplateFile` (`markdown.inja`), `HtmlBackend::kTemplateFile` (`html.inja`) and
+`IcsBackend::kTemplateFile` (`ics.inja`).
 
 ```cpp
 bcal::MarkdownBackend backend(config.find_template(bcal::MarkdownBackend::kTemplateFile));

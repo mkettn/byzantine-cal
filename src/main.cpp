@@ -28,11 +28,7 @@ Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]
-                [--lang=<language>] [--format=<format>]]
-                <yaml_file>
-  byzantine-cal (-h | --help)
-  byzantine-cal --version
+  byzantine-cal [options] <yaml_file>
 
 Options:
   -v --verbose  Show debug output.
@@ -50,7 +46,7 @@ Options:
                 in a lang_dir of the configuration, e.g. de_DE. Overrides the
                 language option of the configuration. Needs --year.
   -f <format>, --format=<format>
-                Output format: markdown (default) or ics (iCalendar, one
+                Output format: markdown (default), html or ics (iCalendar, one
                 all-day event for every day with an entry). Needs --year.
   -C <file>     Configuration file (it names the template and language
                 directories).
@@ -99,8 +95,8 @@ int main(int argc, char** argv) {
     return 3;
   }
   const std::string format = args["--format"] ? args["--format"].asString() : "markdown";
-  if (format != "markdown" && format != "ics") {
-    spdlog::error("format must be markdown or ics");
+  if (format != "markdown" && format != "html" && format != "ics") {
+    spdlog::error("format must be markdown, html or ics");
     return 3;
   }
   const int offset_days =
@@ -131,9 +127,10 @@ int main(int argc, char** argv) {
         args["-C"] ? std::optional<std::string>(args["-C"].asString()) : std::nullopt,
         BCAL_CONFIG_FILE));
     spdlog::debug("configuration {}", config.file().string());
-    const bool ics = format == "ics";
-    const auto template_path = config.find_template(
-        ics ? bcal::IcsBackend::kTemplateFile : bcal::MarkdownBackend::kTemplateFile);
+    const char* template_file = format == "ics"    ? bcal::IcsBackend::kTemplateFile
+                                : format == "html" ? bcal::HtmlBackend::kTemplateFile
+                                                   : bcal::MarkdownBackend::kTemplateFile;
+    const auto template_path = config.find_template(template_file);
     const auto name = args["--lang"] ? std::optional<std::string>(args["--lang"].asString())
                                      : config.language();
     if (!name)
@@ -141,9 +138,13 @@ int main(int argc, char** argv) {
     spdlog::debug("language {}", *name);
     const auto find = [&](const std::string& l) { return config.find_language_file(l); };
     const bcal::Language language(find(*name), find);
-    const std::unique_ptr<bcal::TemplateBackend> backend =
-        ics ? std::unique_ptr<bcal::TemplateBackend>(std::make_unique<bcal::IcsBackend>(template_path))
-            : std::make_unique<bcal::MarkdownBackend>(template_path);
+    std::unique_ptr<bcal::TemplateBackend> backend;
+    if (format == "ics")
+      backend = std::make_unique<bcal::IcsBackend>(template_path);
+    else if (format == "html")
+      backend = std::make_unique<bcal::HtmlBackend>(template_path);
+    else
+      backend = std::make_unique<bcal::MarkdownBackend>(template_path);
     text = backend->render(*calendar, language);
   } catch (const bcal::ConfigFileError& e) {
     spdlog::error("{}", e.what());

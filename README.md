@@ -43,11 +43,11 @@ so it has to be set when configuring, not when installing.
 ## Run
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>] [--lang=<language>] [--format=<format>]] <yaml_file>
+byzantine-cal [options] <yaml_file>
 ```
 
 Without `--year` the calendar file is only checked. With `--year` the calendar of that year is
-generated and rendered as Markdown (`--format=ics`: iCalendar). The result goes to stdout, or to the file given by `--output`.
+generated and rendered as Markdown (`--format=html`: HTML, `--format=ics`: iCalendar). The result goes to stdout, or to the file given by `--output`.
 
 ```bash
 byzantine-cal calendar.yml                                  # check the file
@@ -66,7 +66,7 @@ byzantine-cal --year=2026 --lang=de_DE calendar.yml         # German month and w
 | `-y`, `--year=<year>` | Generate the calendar of this year. |
 | `--old` | The calendar is in the old (Julian) calendar: shift the fixed dates by 13 days. Needs `--year`. |
 | `-o`, `--output=<file>` | Write the result to this file instead of stdout. Needs `--year`. |
-| `-f`, `--format=<format>` | `markdown` (default) or `ics`. Needs `--year`. |
+| `-f`, `--format=<format>` | `markdown` (default), `html` or `ics`. Needs `--year`. |
 | `-C <file>` | The configuration file. Needs `--year`. |
 | `-l`, `--lang=<language>` | The language, overriding the configuration. Needs `--year`. |
 

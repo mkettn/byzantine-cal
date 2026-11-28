@@ -314,6 +314,18 @@ int main() {
   }
 
   {
+    CHECK(bcal::escape_html("a<b>&\"c\" 'd'\r\ne") == "a&lt;b&gt;&amp;&quot;c&quot; &#39;d&#39;<br>e" && bcal::escape_html("") == "");
+    bcal::YearCalendar c(2026, 13);
+    c.add_day(D("25.12"), "Nativity <b>&");
+    const auto html = bcal::HtmlBackend(std::string(BCAL_TPL_DIR) + "/" + bcal::HtmlBackend::kTemplateFile)
+                          .render(c, lang());
+    CHECK(html.find("<!DOCTYPE html>\n<html>\n") == 0 && html.find("<h1>2026</h1>\n<p>Pascha: 2026-04-12</p>\n<h2>January</h2>\n") != std::string::npos);
+    CHECK(html.find("<tr><td>2026-01-07</td><td>Wednesday</td><td>Nativity &lt;b&gt;&amp;</td></tr>\n") != std::string::npos);
+    CHECK(html.find("<h2>February") == std::string::npos && html.find("<b>") == std::string::npos);
+    CHECK(html.size() > 7 && html.compare(html.size() - 8, 8, "</html>\n") == 0);
+  }
+
+  {
     CHECK(bcal::escape_ics("a,b;c\\d\r\ne") == "a\\,b\\;c\\\\d\\ne" && bcal::escape_ics("") == "");
     CHECK(bcal::fold_ics("a\nb\n") == "a\r\nb\r\n" && bcal::fold_ics("") == "");
     const auto folded = bcal::fold_ics(std::string(80, 'x') + "\n");
