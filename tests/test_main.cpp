@@ -575,6 +575,10 @@ int main() {
     CHECK(bad("b8.md", "---\nname: A\nfeast_days:\n  - \"01.01\": \"\"\n---\n", "b8.md:4: the title"));
     CHECK(bad("b9.md", "---\nname: A\nfeast_days:\n  - [1]\n---\n", "b9.md:4: a feast day must be"));
     CHECK(bad("b10.md", "---\n- a\n---\n", "must be a map"));
+    CHECK(bad("b11.md", "---\nname: A\nfeast_days:\n  - \"01.01\":\n---\n", "b11.md:4: the title"));
+    CHECK(bad("b12.md", "---\nname:\nfeast_days: [\"01.01\"]\n---\n", "b12.md:2: name must be"));
+    CHECK(bad("b13.md", "---\r\nname: A\r\nfeast_days: [\"31.04\"]\r\n---\r\n", "b13.md:3: invalid date"));
+    CHECK(bcal::load_saint(sb.write("bom.md", "\xEF\xBB\xBF---\nname: A\nfeast_days: [05.10]\n---\nx\n---\ny\n")).description == "x\n---\ny");
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saint(sb.dir / "nope.md"); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saint(sb.dir); }));
   }
@@ -584,10 +588,14 @@ int main() {
     sb.write("saints/b.md", "---\nname: B\nfeast_days: [\"02.01\"]\n---\n");
     sb.write("saints/a.md", "---\nname: A\nfeast_days: [\"01.01\"]\n---\n");
     sb.write("saints/notes.txt", "ignored");
+    sb.write("saints/Z.md", "---\nname: Z\nfeast_days: [\"03.01\"]\n---\n");
+    sb.write("saints/dir.md/x", "");
+    std::filesystem::create_symlink("loop.md", sb.dir / "saints/loop.md");
     const auto saints = bcal::load_saints(sb.dir / "saints");
-    CHECK(saints.size() == 2 && saints[0].name == "A" && saints[1].name == "B");
+    CHECK(saints.size() == 3 && saints[0].name == "Z" && saints[1].name == "A" && saints[2].name == "B");
     CHECK(bcal::load_saints(sb.dir).empty());   // no .md file
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saints(sb.dir / "nope"); }));
+    std::filesystem::remove(sb.dir / "saints/loop.md");
     sb.write("saints/c.md", "broken");
     CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints"); }));
   }

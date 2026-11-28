@@ -1,7 +1,7 @@
 # Saints
 
 A saint is described by a Markdown file. A directory holds one file per saint, and every file whose
-name ends in `.md` is read, in the order of the file names.
+name ends in `.md` (in lowercase) is read, in the byte order of the file names.
 
 ## The file
 
@@ -23,7 +23,7 @@ Bishop of Myra in Lycia, ...
 - **`name`** is required text. Other fields in the header are ignored.
 - **`feast_days`** is a list with at least one item. An item is either a date, or a map of
   `date: title` (one or more pairs). The title is the reason for the feast, and is empty for a plain
-  date. The same date with two titles needs two items, because a map cannot repeat a key.
+  date. The same date with two titles goes in two items.
 - **Dates** have the syntax of the [calendar file](dates.md): `DD.MM` and Pascha-relative dates such
   as `p+7`, but no ranges. Put them in quotes.
 
