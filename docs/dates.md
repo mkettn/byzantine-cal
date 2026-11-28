@@ -96,7 +96,7 @@ its value on a single line, for example `Theophany`, `no_meat` or `{name: Nativi
 
 `YearCalendar` (`src/year_calendar.h`) is the calendar of one year. It is created for a year and an
 offset, which is added to the fixed dates. The constructor calculates the day of Pascha. It is
-filled with rules that carry a string of arbitrary data, and the rule added last wins for a day:
+filled with entries that carry a string of arbitrary data, and the entry added last wins for a day:
 
 ```cpp
 bcal::YearCalendar cal(2026, /*offset_days=*/13);   // cal.pascha() is 12 April 2026
@@ -112,7 +112,7 @@ for (const bcal::CalendarDay& each : cal) { /* 365 or 366 days, in order */ }
 ```
 
 All dates outside the class are Gregorian: `at()`, the returned days and the iteration. With an
-offset of 13, `at(12, 25)` returns the rule that was added for 12.12. The class knows nothing about
+offset of 13, `at(12, 25)` returns the entry that was added for 12.12. The class knows nothing about
 YAML.
 
 - **Weekdays** are numbers, 0 (Monday) to 6 (Sunday), in a `bcal::Weekdays` set. `all_weekdays()`
@@ -129,4 +129,4 @@ YAML.
 `validate()` (`src/validator.h`) checks a parsed calendar file and returns the problems with their
 lines, and `load_year_calendar()` (`src/calendar_loader.h`) builds a calendar from a calendar file.
 It throws `std::invalid_argument` if the file is invalid or the year is out of range, and the data of
-a day is the YAML of its rule on one line.
+a day is the YAML of its value on one line.
