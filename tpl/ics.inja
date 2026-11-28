@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//byzantine-cal//{{ year }}//EN
+CALSCALE:GREGORIAN
+%% for day in days
+%% if day.has_rule
+BEGIN:VEVENT
+UID:{{ day.date }}@byzantine-cal
+DTSTAMP:{{ day.date_basic }}T000000Z
+DTSTART;VALUE=DATE:{{ day.date_basic }}
+SUMMARY:{{ escape_ics(day.data) }}
+END:VEVENT
+%% endif
+%% endfor
+END:VCALENDAR
