@@ -582,6 +582,8 @@ int main() {
       CHECK(r.days.size() == 4 && r.days[0].end && r.days[0].end->day == 25 && r.days[0].title == "span");
       CHECK(r.days[1].day.kind == bcal::Day::Kind::Pascha && r.days[1].end->offset_days == 7 && r.days[2].end->month == 1 && !r.days[3].end);
     }
+    CHECK(bad("r6.yaml", "name: A\ndays: [\"01.01\"]\n---\nname: B\ndays:\n  - \"01.01..99.01\"\n", "r6.yaml:6: invalid date"));
+    CHECK(bad("r7.md", "---\nname: A\ndays: [\" 01.01 .. 02.01\"]\n---\n", "r7.md:3: invalid date"));
     CHECK(bad("r1.md", "---\nname: A\ndays: [\"01.01..02.01..03.01\"]\n---\n", "r1.md:3: range \"01.01..02.01..03.01\" has more"));
     CHECK(bad("r2.md", "---\nname: A\ndays: [\"01.01..31.04\"]\n---\n", "r2.md:3: invalid date"));
     CHECK(bad("r3.md", "---\nname: A\ndays: [\"p+7..p\"]\n---\n", "r3.md:3: range \"p+7..p\" ends before it starts"));
@@ -699,6 +701,16 @@ int main() {
     CHECK(r.at(1, 7).entries.size() == 1 && r.at(1, 9).entries.size() == 1 && r.at(1, 10).entries.empty());   // 25.-27.12 + 13
     CHECK(r.at(1, 11).entries.size() == 1 && r.at(1, 15).entries.size() == 1 && r.at(1, 16).entries.empty());  // 29.12.-02.01 + 13
     CHECK(r.at(4, 12).entries.size() == 1 && r.at(4, 13).entries.size() == 1 && r.at(4, 14).entries.empty());
+    bcal::YearCalendar shifted(2026);
+    shifted.add_entry(entry("Shift", {{D("p<mon"), "", D("p+1>wed")}}));
+    CHECK(shifted.at(4, 6).entries.size() == 1 && shifted.at(4, 15).entries.size() == 1 && shifted.at(4, 5).entries.empty());   // Mon 6.4. .. Wed 15.4.
+    CHECK(shifted.at(4, 16).entries.empty());
+    bcal::YearCalendar mixed(2026);
+    mixed.add_entry(entry("Mix", {{D("01.01"), "", D("p")}}));
+    CHECK(mixed.at(1, 1).entries.size() == 1 && mixed.at(4, 12).entries.size() == 1 && mixed.at(4, 13).entries.empty());
+    bcal::YearCalendar nonexistent(2026);
+    nonexistent.add_entry(entry("Never", {{D("29.02"), "", D("05.03")}}));
+    CHECK(nonexistent.at(3, 1).entries.empty() && nonexistent.at(3, 5).entries.empty());   // 29.02.2026 does not exist
     r.add_entry(entry("Overlap", {{D("25.12"), "", D("26.12")}, {D("26.12"), "", D("27.12")}}));
     CHECK(r.at(1, 8).entries.size() == 2 && r.at(1, 8).entries[1]->name == "Overlap");   // listed once
     // a day of the previous year's date shifted into this year
