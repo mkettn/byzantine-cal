@@ -18,7 +18,7 @@ find_package(inja REQUIRED)
 # The installed config.yaml is looked for under the install prefix (see the README).
 set(BCAL_CONFIG_FILE "${CMAKE_INSTALL_PREFIX}/lib/byzantine-cal/config.yaml")
 
-add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp
+add_library(bcal STATIC src/day.cpp src/pascha.cpp
             src/year_calendar.cpp src/calendar_loader.cpp
             src/template_backend.cpp src/byzantine_cal_config.cpp
             src/language.cpp)
@@ -81,7 +81,7 @@ if(BUILD_TESTING)
   bcal_expect(invalid_null_name invalid/null_name.yml 1 "non-empty text")
   bcal_expect(invalid_pascha_backwards invalid/pascha_backwards.yml 1 "ends before it starts")
   bcal_expect(invalid_empty_file invalid/empty_file.yml 1 "file is empty")
-  bcal_expect(invalid_multi_doc invalid/multi_doc.yml 1 "YAML documents")
+  bcal_expect(invalid_multi_doc invalid/multi_doc.yml 1 "single YAML document")
   bcal_expect(invalid_not_a_list invalid/not_a_list.yml 1 "must be a list")
   bcal_expect(invalid_yaml_syntax invalid/yaml_syntax.yml 1 "YAML syntax error")
   bcal_expect(error_missing_file invalid/nope.yml 2 "cannot read")

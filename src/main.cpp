@@ -11,14 +11,11 @@
 #include <optional>
 #include <string>
 
-#include <yaml-cpp/yaml.h>
-
 #include "byzantine_cal_config.h"
 #include "language.h"
 #include "calendar_loader.h"
 #include "pascha.h"
 #include "template_backend.h"
-#include "validator.h"
 
 static bool parse_int(const std::string& text, int& out) {
   auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), out);
@@ -112,27 +109,19 @@ int main(int argc, char** argv) {
   const auto path = args["<yaml_file>"].asString();
   spdlog::debug("reading {}", path);
 
-  bcal::Report report;
-  YAML::Node root;
+  // Without --year the file is only checked, for a leap year so that 29.02 is fine.
+  constexpr int kCheckYear = 2000;
+  std::optional<bcal::YearCalendar> calendar;
   try {
-    root = bcal::load_file(path, report);
-    if (report.ok()) report = bcal::validate(root);
-  } catch (const std::exception& e) {
-    spdlog::error("cannot read {}: {}", path, e.what());
+    calendar.emplace(bcal::load_year_calendar_file(path, generate ? year : kCheckYear, offset_days));
+  } catch (const bcal::ConfigFileError& e) {
+    spdlog::error("{}", e.what());
     return 2;
-  }
-
-  for (const auto& e : report.errors) {
-    if (e.line > 0)
-      spdlog::error("{}:{}: {}", path, e.line, e.message);
-    else
-      spdlog::error("{}: {}", path, e.message);
-  }
-  if (!report.ok()) {
-    spdlog::error("{} problem(s) found", report.errors.size());
+  } catch (const std::exception& e) {
+    spdlog::error("{}", e.what());
     return 1;
   }
-  spdlog::info("{}: OK ({} entries)", path, report.entries);
+  spdlog::info("{}: OK", path);
 
   if (!generate) return 0;
 
@@ -155,7 +144,7 @@ int main(int argc, char** argv) {
     const std::unique_ptr<bcal::TemplateBackend> backend =
         ics ? std::unique_ptr<bcal::TemplateBackend>(std::make_unique<bcal::IcsBackend>(template_path))
             : std::make_unique<bcal::MarkdownBackend>(template_path);
-    text = backend->render(bcal::load_year_calendar(root, year, offset_days), language);
+    text = backend->render(*calendar, language);
   } catch (const bcal::ConfigFileError& e) {
     spdlog::error("{}", e.what());
     return 2;
