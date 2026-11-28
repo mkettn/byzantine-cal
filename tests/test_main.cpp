@@ -15,6 +15,7 @@
 #include "byzantine_cal_config.h"
 #include "calendar_loader.h"
 #include "year_calendar.h"
+#include "saint.h"
 
 static int failures = 0;
 #define CHECK(c)                                              \
@@ -545,6 +546,50 @@ int main() {
     CHECK(md.find("\\# P: 2026-04-12") != std::string::npos && md.find("| 2026-01-07 | W\\|3 |") != std::string::npos);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language(sb.dir / "nope.yaml", no_fallback); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language(sb.dir, no_fallback); }));   // a directory
+  }
+
+  {
+    Sandbox sb;
+    const auto file = sb.write("n.md",
+        "---\nname: Nicholas\nfeast_days:\n  - \"06.12\": feast day\n    \"p+7\": translation\n  - \"09.05\"\n---\n\n"
+        "Bishop of *Myra*.\n\nMore.\n\n");
+    const auto s = bcal::load_saint(file);
+    CHECK(s.name == "Nicholas" && s.description == "Bishop of *Myra*.\n\nMore." && s.file == file);
+    CHECK(s.feasts.size() == 3 && s.feasts[0].title == "feast day" && s.feasts[0].day.month == 12);
+    CHECK(s.feasts[1].title == "translation" && s.feasts[1].day.kind == bcal::Day::Kind::Pascha);
+    CHECK(s.feasts[2].title.empty() && s.feasts[2].day.day == 9);
+    CHECK(bcal::load_saint(sb.write("e.md", "---\r\nname: A\r\nfeast_days: [\"01.01\"]\r\n---\r\n")).description.empty());
+    auto bad = [&](const char* name, const std::string& text, const char* msg) {
+      try { bcal::load_saint(sb.write(name, text)); } catch (const std::invalid_argument& e) {
+        return std::string(e.what()).find(msg) != std::string::npos;
+      }
+      return false;
+    };
+    CHECK(bad("b1.md", "no header\n", "b1.md:1: the file must start"));
+    CHECK(bad("b2.md", "---\nname: A\n", "b2.md:1: the header is not closed"));
+    CHECK(bad("b3.md", "---\nname: [\n---\n", "YAML syntax error"));
+    CHECK(bad("b4.md", "---\nfeast_days: [\"01.01\"]\n---\n", "name must be non-empty"));
+    CHECK(bad("b5.md", "---\nname: A\n---\n", "feast_days is missing"));
+    CHECK(bad("b6.md", "---\nname: A\nfeast_days: []\n---\n", "b6.md:3: feast_days must be a list"));
+    CHECK(bad("b7.md", "---\nname: A\nfeast_days:\n  - \"31.04\"\n---\n", "b7.md:4: invalid date"));
+    CHECK(bad("b8.md", "---\nname: A\nfeast_days:\n  - \"01.01\": \"\"\n---\n", "b8.md:4: the title"));
+    CHECK(bad("b9.md", "---\nname: A\nfeast_days:\n  - [1]\n---\n", "b9.md:4: a feast day must be"));
+    CHECK(bad("b10.md", "---\n- a\n---\n", "must be a map"));
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saint(sb.dir / "nope.md"); }));
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saint(sb.dir); }));
+  }
+
+  {
+    Sandbox sb;
+    sb.write("saints/b.md", "---\nname: B\nfeast_days: [\"02.01\"]\n---\n");
+    sb.write("saints/a.md", "---\nname: A\nfeast_days: [\"01.01\"]\n---\n");
+    sb.write("saints/notes.txt", "ignored");
+    const auto saints = bcal::load_saints(sb.dir / "saints");
+    CHECK(saints.size() == 2 && saints[0].name == "A" && saints[1].name == "B");
+    CHECK(bcal::load_saints(sb.dir).empty());   // no .md file
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saints(sb.dir / "nope"); }));
+    sb.write("saints/c.md", "broken");
+    CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints"); }));
   }
 
   // --- invalid input / parameters

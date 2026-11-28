@@ -21,7 +21,7 @@ set(BCAL_CONFIG_FILE "${CMAKE_INSTALL_PREFIX}/lib/byzantine-cal/config.yaml")
 add_library(bcal STATIC src/day.cpp src/pascha.cpp
             src/year_calendar.cpp src/calendar_loader.cpp
             src/template_backend.cpp src/byzantine_cal_config.cpp
-            src/language.cpp)
+            src/language.cpp src/saint.cpp)
 target_include_directories(bcal PUBLIC src)
 target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog
                       nlohmann_json::nlohmann_json pantor::inja)

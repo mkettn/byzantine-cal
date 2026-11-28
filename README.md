@@ -85,3 +85,4 @@ written (the output file, or stdout) or no configuration file, template or langu
 - [Configuration](docs/configuration.md): the configuration file and where it is looked for
 - [Templates](docs/templates.md): the templates and the data they get
 - [Languages](docs/language.md): language files and fallbacks
+- [Saints](docs/saints.md): the Markdown files that describe the saints and their feast days
