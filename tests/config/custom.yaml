@@ -3,3 +3,4 @@ template_dir:
 lang_dir:
   - ../../lang
   - ../lang-custom
+language: en_US

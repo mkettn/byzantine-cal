@@ -1,3 +1,3 @@
-# Only what differs from de.
-fallback: de
+# Only what differs from de_DE.
+fallback: de_DE
 months: [Jänner, Februar, März, April, Mai, Juni, Juli, August, September, Oktober, November, Dezember]

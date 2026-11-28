@@ -51,8 +51,7 @@ if(BUILD_TESTING)
   add_test(NAME unit COMMAND bcal-tests)
   set(RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_expect.cmake)
   # Arguments separated by "|"; exit code and a regex on the output are checked.
-  # An optional last argument is the working directory. Environment variables can be set with
-  # -DENV_VARS ("NAME=value,NAME=value"), see bcal_expect_env().
+  # An optional last argument is the working directory.
   function(bcal_expect_args name args code regex)
     add_test(NAME ${name}
              COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal>
@@ -89,11 +88,6 @@ if(BUILD_TESTING)
   bcal_expect(invalid_yaml_syntax invalid/yaml_syntax.yml 1 "YAML syntax error")
   bcal_expect(error_missing_file invalid/nope.yml 2 "cannot read")
   bcal_expect(error_directory invalid 2 "cannot read")
-  function(bcal_expect_env name env args code regex)
-    add_test(NAME ${name}
-             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal> "-DENV_VARS=${env}"
-                     "-DARGS=${args}" -DCODE=${code} "-DREGEX=${regex}" -P ${RUNNER})
-  endfunction()
   set(NATIVITY ${CMAKE_CURRENT_SOURCE_DIR}/tests/year/nativity.yml)
   set(CFG ${CMAKE_CURRENT_SOURCE_DIR}/tests/config)
   bcal_expect_args(year_old "--year=2026|--old|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "2026-01-07.+Nativity")
@@ -102,26 +96,21 @@ if(BUILD_TESTING)
   bcal_expect_args(year_markdown_escaped "--year=2026|-C|${CFG}/bcal.yaml|${CMAKE_CURRENT_SOURCE_DIR}/tests/year/special.yml" 0
                    "Theophany\\\\_Feast.+has \\\\`tick\\\\` \\\\\\| pipe")
   # Languages. 7 January 2026 is a Wednesday: with --old the Nativity fast ends on it.
+  # The configuration says en_US; --lang=<name> uses the file <name>.yaml in a lang_dir.
   set(OLD "--year=2026|--old|-C|${CFG}/bcal.yaml")
   bcal_expect_args(lang_english "${OLD}|${NATIVITY}" 0 "Pascha: 2026-04-12.+## January.+\\| Date \\| Weekday \\| Data \\|.+2026-01-07 \\| Wednesday")
   bcal_expect_args(lang_german "${OLD}|--lang=de_DE|${NATIVITY}" 0 "Pascha: 2026-04-12.+## Januar.+\\| Datum \\| Wochentag \\| Daten \\|.+2026-01-07 \\| Mittwoch")
-  bcal_expect_args(lang_territory_file "${OLD}|--lang=de_AT|${NATIVITY}" 0 "## J.+nner.+Mittwoch")   # months of de_AT, the rest of de
-  # fr_FR has no file: English, also if the configuration says German
-  # any name: foo_BAR.yaml is found in a lang_dir
+  bcal_expect_args(lang_fallback "${OLD}|--lang=de_AT|${NATIVITY}" 0 "## J.+nner.+Mittwoch")   # months of de_AT, the rest of de_DE
   bcal_expect_args(lang_any_name "--year=2026|--old|-C|${CFG}/custom.yaml|--lang=foo_BAR|${NATIVITY}" 0 "Paschax:.+## Janx.+Wex")
-  bcal_expect_args(lang_unknown_is_english "--year=2026|--old|-C|${CFG}/german.yaml|--lang=fr_FR|${NATIVITY}" 0 "## January.+Wednesday")
-  bcal_expect_args(lang_invalid "${OLD}|--lang=../x|${NATIVITY}" 3 "invalid language")
-  bcal_expect_args(lang_empty "${OLD}|--lang=|${NATIVITY}" 3 "--lang needs a language name")
-  bcal_expect_args(lang_without_year "--lang=de_DE|${NATIVITY}" 3 "need --year")
   bcal_expect_args(lang_from_config "--year=2026|--old|-C|${CFG}/german.yaml|${NATIVITY}" 0 "## Januar.+Mittwoch")
-  bcal_expect_args(lang_option_beats_config "--year=2026|--old|-C|${CFG}/german.yaml|--lang=en|${NATIVITY}" 0 "## January.+Wednesday")
-  bcal_expect_env(lang_from_environment "LANG=de_DE.UTF-8" "${OLD}|${NATIVITY}" 0 "## Januar.+Mittwoch")
-  bcal_expect_env(lang_c_locale_is_english "LANG=de_DE.UTF-8,LC_ALL=C" "${OLD}|${NATIVITY}" 0 "## January.+Wednesday")
-  bcal_expect_args(lang_files_missing "--year=2026|--old|-C|${CFG}/no-lang.yaml|${NATIVITY}" 2 "cannot find a language file for en")
-  # en.yaml falls back to de_XX which falls back to en: read only once, with a warning
-  bcal_expect_args(lang_circular_fallback "--year=2026|--old|-C|${CFG}/circular.yaml|--lang=en|${NATIVITY}" 0
-                   "## January.+already read")
-  bcal_expect_args(lang_file_invalid "--year=2026|--old|-C|${CFG}/bad-lang.yaml|${NATIVITY}" 1 "en.yaml:1: months must be a list of 12 names")
+  bcal_expect_args(lang_option_beats_config "--year=2026|--old|-C|${CFG}/german.yaml|--lang=en_US|${NATIVITY}" 0 "## January.+Wednesday")
+  bcal_expect_args(lang_without_year "--lang=de_DE|${NATIVITY}" 3 "need --year")
+  bcal_expect_args(lang_unknown "${OLD}|--lang=fr_FR|${NATIVITY}" 2 "cannot find the language file fr_FR.yaml in the lang_dir of ")
+  bcal_expect_args(lang_not_set "--year=2026|--old|-C|${CFG}/no-language.yaml|${NATIVITY}" 1 "no language: set language: in the configuration or use --lang")
+  bcal_expect_args(lang_dirs_missing "--year=2026|--old|-C|${CFG}/no-lang.yaml|${NATIVITY}" 2 "cannot find the language file en_US.yaml.+it lists no directory")
+  # en_US.yaml falls back to de_XX which falls back to en_US: read only once, with a warning
+  bcal_expect_args(lang_circular_fallback "--year=2026|--old|-C|${CFG}/circular.yaml|${NATIVITY}" 0 "## January.+already read")
+  bcal_expect_args(lang_file_invalid "--year=2026|--old|-C|${CFG}/bad-lang.yaml|${NATIVITY}" 1 "en_US.yaml:1: months must be a list of 12 names")
   # Without -C and bcal.yaml the program uses the installed config.yaml.
   add_test(NAME default_config
            COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal> -DCONFIG=${BCAL_CONFIG_FILE}

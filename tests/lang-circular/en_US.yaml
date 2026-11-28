@@ -1,4 +1,4 @@
-fallback: de_XX   # which falls back to en again: read only once
+fallback: de_XX   # which falls back to en_US again: read only once
 months: [January, February, March, April, May, June, July, August, September, October, November, December]
 weekdays: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
 ui: {date: Date, weekday: Weekday, data: Data, pascha: Pascha}

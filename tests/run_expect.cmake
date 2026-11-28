@@ -4,17 +4,7 @@
 if(DEFINED OUT_FILE)
   file(REMOVE ${OUT_FILE})
 endif()
-# The language of the machine must not matter; ENV_VARS="NAME=value,NAME=value" sets some.
-foreach(variable LC_ALL LC_MESSAGES LANG)
-  set(ENV{${variable}} "")
-endforeach()
-if(DEFINED ENV_VARS)
-  string(REPLACE "," ";" ENV_VARS "${ENV_VARS}")
-  foreach(assignment ${ENV_VARS})
-    string(REGEX MATCH "^([^=]*)=(.*)$" unused "${assignment}")
-    set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
-  endforeach()
-endif()
+
 if(DEFINED ARGS)
   string(REPLACE "|" ";" ARGS "${ARGS}")
 endif()

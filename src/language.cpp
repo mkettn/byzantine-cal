@@ -1,50 +1,9 @@
 #include "language.h"
 
-#include <regex>
-
 #include <spdlog/spdlog.h>
 #include <yaml-cpp/yaml.h>
 
 namespace bcal {
-
-std::vector<std::string> locale_names(const std::string& locale) {
-  std::string name = locale.substr(0, locale.find('@'));  // modifier
-  name = name.substr(0, name.find('.'));                  // codeset
-  if (locale.empty() || name == "C" || name == "POSIX") return {"en"};
-
-  // Any name is fine that is safe in a file name. Names like de_DE are only a convention.
-  static const std::regex pattern("[A-Za-z0-9]+([_-][A-Za-z0-9]+)*");
-  if (!std::regex_match(name, pattern))
-    throw ConfigError("invalid language \"" + locale + "\" (use letters, digits, _ and -, e.g. de or de_DE)");
-
-  std::vector<std::string> names{name};
-  for (auto cut = name.rfind('_'); cut != std::string::npos; cut = name.rfind('_')) {
-    name.resize(cut);  // foo_BAR_baz -> foo_BAR -> foo
-    names.push_back(name);
-  }
-  return names;
-}
-
-std::string choose_locale(const std::optional<std::string>& from_cli,
-                          const std::optional<std::string>& from_config,
-                          const std::function<const char*(const char*)>& get_env) {
-  for (const auto* given : {&from_cli, &from_config}) {
-    if (!*given) continue;
-    locale_names(**given);  // validates
-    return **given;
-  }
-  for (const char* variable : {"LC_ALL", "LC_MESSAGES", "LANG"}) {
-    const char* value = get_env(variable);
-    if (!value || !*value) continue;
-    try {
-      locale_names(value);
-      return value;
-    } catch (const ConfigError&) {
-      return "en";  // the first one that is set decides; a garbage value means no language
-    }
-  }
-  return "en";
-}
 
 namespace {
 
@@ -85,15 +44,12 @@ void Language::load(const std::filesystem::path& file, const LanguageFileFinder&
 
   // The fallback first, so that the keys of this file replace its keys.
   if (const YAML::Node fallback = root["fallback"]; fallback.IsDefined()) {
-    if (!fallback.IsScalar()) throw ConfigError(location(file, fallback) + "fallback must be a language name");
+    if (!fallback.IsScalar()) throw ConfigError(location(file, fallback) + "fallback must be the name of a language");
     std::filesystem::path next;
     try {
-      locale_names(fallback.Scalar());  // validates
       next = find(fallback.Scalar());
     } catch (const ConfigFileError& e) {
       throw ConfigFileError(file.string() + ": fallback: " + e.what());
-    } catch (const ConfigError& e) {
-      throw ConfigError(location(file, fallback) + e.what());
     }
     load(next, find, read);
   }

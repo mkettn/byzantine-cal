@@ -2,3 +2,4 @@ template_dir:
   - ../../tpl
 lang_dir:
   - ../../lang
+language: en_US

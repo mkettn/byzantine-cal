@@ -49,10 +49,9 @@ Options:
                 Write the result to this file instead of stdout.
                 Needs --year.
   -l <language>, --lang=<language>
-                Language of month and weekday names, a language name such as
-                de_DE or de (the name of a language file). Default: the language in the
-                configuration, else LC_ALL, LC_MESSAGES or LANG, else en.
-                Needs --year.
+                Language of month and weekday names: the name of a language file
+                in a lang_dir of the configuration, e.g. de_DE. Overrides the
+                language option of the configuration. Needs --year.
   -C <file>     Configuration file (it names the template and language
                 directories).
                 Default: bcal.yaml in the current directory, otherwise the
@@ -98,17 +97,6 @@ int main(int argc, char** argv) {
                                   : "--old, --output, --lang and -C need --year\n");
     return 3;
   }
-  const std::optional<std::string> lang_from_cli =
-      args["--lang"] ? std::optional<std::string>(args["--lang"].asString()) : std::nullopt;
-  if (lang_from_cli) {
-    try {
-      if (lang_from_cli->empty()) throw bcal::ConfigError("--lang needs a language name such as de_DE");
-      bcal::locale_names(*lang_from_cli);
-    } catch (const bcal::ConfigError& e) {
-      std::fprintf(stderr, "%s\n", e.what());
-      return 3;
-    }
-  }
   const int offset_days =
       args["--old"].asBool() ? bcal::kJulianGregorianOffsetDays : 0;
 
@@ -146,16 +134,13 @@ int main(int argc, char** argv) {
         BCAL_CONFIG_FILE));
     spdlog::debug("configuration {}", config.file().string());
     const auto template_path = config.find_template(bcal::MarkdownBackend::kTemplateFile);
-    const auto locale = bcal::choose_locale(lang_from_cli, config.language());
-    spdlog::debug("language {}", locale);
+    const auto name = args["--lang"] ? std::optional<std::string>(args["--lang"].asString())
+                                     : config.language();
+    if (!name)
+      throw bcal::ConfigError(config.file().string() + ": no language: set language: in the configuration or use --lang");
+    spdlog::debug("language {}", *name);
     const auto find = [&](const std::string& l) { return config.find_language_file(l); };
-    std::filesystem::path language_file;
-    try {
-      language_file = find(locale);
-    } catch (const bcal::ConfigFileError&) {
-      language_file = find("en");  // no file for that language: English
-    }
-    const bcal::Language language(language_file, find);
+    const bcal::Language language(find(*name), find);
     text = bcal::MarkdownBackend(template_path)
                .render(bcal::load_year_calendar(root, year, offset_days), language);
   } catch (const bcal::ConfigFileError& e) {

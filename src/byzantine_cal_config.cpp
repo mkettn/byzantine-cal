@@ -2,7 +2,6 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include "language.h"
 
 namespace bcal {
 
@@ -79,13 +78,8 @@ ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
     } else if (name == "lang_dir") {
       lang_dirs_ = dirs_of(option.second, "lang_dir");
     } else {
-      if (!option.second.IsScalar() || option.second.Scalar().empty())
-        throw ConfigError(location(file, option.second) + "language must be a language name like de_DE");
-      try {
-        locale_names(option.second.Scalar());
-      } catch (const ConfigError& e) {
-        throw ConfigError(location(file, option.second) + e.what());
-      }
+      if (!option.second.IsScalar())
+        throw ConfigError(location(file, option.second) + "language must be the name of a language file");
       language_ = option.second.Scalar();
     }
   }
@@ -100,15 +94,12 @@ fs::path ByzantineCalConfig::find_template(const std::string& name) const {
                         file_.string() + (dirs.empty() ? " (it lists no directory)" : " (" + dirs + ")"));
 }
 
-fs::path ByzantineCalConfig::find_language_file(const std::string& locale) const {
-  std::string looked, dirs;
-  for (const auto& name : locale_names(locale)) {
-    looked += (looked.empty() ? "" : ", ") + name + ".yaml";
-    for (const auto& dir : lang_dirs_)
-      if (fs::is_regular_file(dir / (name + ".yaml"))) return dir / (name + ".yaml");
-  }
+fs::path ByzantineCalConfig::find_language_file(const std::string& language) const {
+  for (const auto& dir : lang_dirs_)
+    if (fs::is_regular_file(dir / (language + ".yaml"))) return dir / (language + ".yaml");
+  std::string dirs;
   for (const auto& dir : lang_dirs_) dirs += (dirs.empty() ? "" : ", ") + dir.string();
-  throw ConfigFileError("cannot find a language file for " + locale + " (" + looked + ") in the lang_dir of " +
+  throw ConfigFileError("cannot find the language file " + language + ".yaml in the lang_dir of " +
                         file_.string() + (dirs.empty() ? ": it lists no directory" : " (" + dirs + ")"));
 }
 

@@ -68,10 +68,10 @@ struct Sandbox {
   }
 };
 static bcal::Day D(const char* s) { return *bcal::parse_day(s).day; }
-// The language of a locale from the language files of the sources.
-static bcal::Language lang(const char* locale = "en") {
+// A language from the language files of the sources.
+static bcal::Language lang(const char* name = "en_US") {
   static const bcal::ByzantineCalConfig config(BCAL_TEST_CONFIG);
-  return bcal::Language(config.find_language_file(locale),
+  return bcal::Language(config.find_language_file(name),
                         [&](const std::string& l) { return config.find_language_file(l); });
 }
 // For language files without a fallback.
@@ -349,8 +349,7 @@ int main() {
                             "template_dir: ['']\n", "template_dirs: [a]\n", "template_dir: [a]\nx: 1\n",
                             "template_dir: [a\n", "template_dir: [a]\ntemplate_dir: [b]\n",
                             "template_dir: [a]\n---\ntemplate_dir: [b]\n", "lang_dir: lang\n", "lang_dir: [[a]]\n",
-                            "lang_dir: [a]\nlang_dir: [b]\n", "language: ../x\n", "language: [de]\n", "language: ''\n",
-                            "language: de_DE\nlanguage: en\n"})
+                            "lang_dir: [a]\nlang_dir: [b]\n", "language: [de]\n", "language:\n", "language: de_DE\nlanguage: en\n"})
       CHECK(kind(bad) == 1);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig(dir / "nope.yaml"); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig{dir}; }));   // a directory
@@ -361,25 +360,19 @@ int main() {
       CHECK(what.find("x.yaml:2: unknown option \"template_dirs\"") != std::string::npos);
     }
 
-    // lang_dir and language
+    // lang_dir and language: <language>.yaml in the first lang_dir that has it, any name
     fs::create_directories(dir / "a" / "lang");
     fs::create_directories(dir / "b" / "lang");
-    write("a/lang/de.yaml", "ui: {date: x}\n");
-    write("a/lang/en.yaml", "ui: {date: y}\n");
-    write("b/lang/de.yaml", "ui: {date: z}\n");
-    write("b/lang/de_AT.yaml", "ui: {date: w}\n");
+    write("a/lang/de_DE.yaml", "");
+    write("b/lang/de_DE.yaml", "");
+    write("b/lang/foo.bar.yaml", "");
     const bcal::ByzantineCalConfig lc(write("a/l.yaml", "lang_dir: [lang, ../b/lang]\nlanguage: de_AT\n"));
     CHECK(lc.language() == "de_AT" && !c.language());
-    CHECK(lc.find_language_file("de_AT") == dir / "b/lang/de_AT.yaml");
-    CHECK(lc.find_language_file("de_DE.UTF-8") == dir / "a/lang/de.yaml");   // no de_DE: de, in the first dir that has it
-    CHECK(lc.find_language_file("en") == dir / "a/lang/en.yaml");
-    write("b/lang/foo_BAR.yaml", "");   // any name: foo_BAR.yaml, or else foo.yaml
-    write("a/lang/foo.yaml", "");
-    CHECK(lc.find_language_file("foo_BAR") == dir / "b/lang/foo_BAR.yaml" && lc.find_language_file("foo_XX") == dir / "a/lang/foo.yaml");
-    CHECK(throws<bcal::ConfigFileError>([&] { lc.find_language_file("fr_FR"); }));
-    CHECK(throws<bcal::ConfigFileError>([&] { c.find_language_file("de"); }));        // no lang_dir
-    CHECK(throws<bcal::ConfigError>([&] { lc.find_language_file("../x"); }));
-    CHECK(bcal::ByzantineCalConfig(write("o.yaml", "language: de_DE.UTF-8\n")).language() == "de_DE.UTF-8");
+    CHECK(lc.find_language_file("de_DE") == dir / "a/lang/de_DE.yaml");
+    CHECK(lc.find_language_file("foo.bar") == dir / "b/lang/foo.bar.yaml");   // no check of the name
+    CHECK(throws<bcal::ConfigFileError>([&] { lc.find_language_file("de"); }));   // only <name>.yaml
+    CHECK(throws<bcal::ConfigFileError>([&] { c.find_language_file("de_DE"); }));        // no lang_dir
+    CHECK(bcal::ByzantineCalConfig(write("o.yaml", "language: any thing!\n")).language() == "any thing!");
 
     // which file: -C, else bcal.yaml in the working directory, else the installed one
     const std::string installed = (dir / "a" / "bcal.yaml").string();
@@ -403,51 +396,21 @@ int main() {
     }
   }
 
-  // --- locale names
-  {
-    using V = std::vector<std::string>;
-    for (const char* german : {"de_DE", "de_DE.UTF-8", "de_DE.UTF-8@euro"})   // the codeset is implied
-      CHECK(bcal::locale_names(german) == V({"de_DE", "de"}));
-    CHECK(bcal::locale_names("de") == V({"de"}) && bcal::locale_names("en_US") == V({"en_US", "en"}));
-    CHECK(bcal::locale_names("foo_BAR") == V({"foo_BAR", "foo"}) && bcal::locale_names("a_b_c-d") == V({"a_b_c-d", "a_b", "a"}));   // any name
-    for (const char* none : {"", "C", "POSIX", "C.UTF-8", "en"}) CHECK(bcal::locale_names(none) == V({"en"}));
-    for (const char* bad : {"../x", "de DE", "de/DE", ".UTF-8", "@euro", "_de", "de_", "de__DE", "de-", "-de", "ü"})
-      CHECK(throws<bcal::ConfigError>([&] { bcal::locale_names(bad); }));
-
-    auto env = [](std::map<std::string, std::string> vars) {
-      return [vars](const char* name) -> const char* {
-        const auto it = vars.find(name);
-        return it == vars.end() ? nullptr : it->second.c_str();
-      };
-    };
-    using O = std::optional<std::string>;
-    const O none, cli = "fr_FR", config = "de_AT";
-    CHECK(bcal::choose_locale(cli, config, env({{"LANG", "de_DE"}})) == "fr_FR");        // --lang wins
-    CHECK(bcal::choose_locale(none, config, env({{"LC_ALL", "fr_FR"}})) == "de_AT");     // then the config
-    CHECK(bcal::choose_locale(none, none, env({{"LC_MESSAGES", "fr_FR"}, {"LC_ALL", "it_IT"}, {"LANG", "de_DE"}})) == "it_IT");
-    CHECK(bcal::choose_locale(none, none, env({{"LC_ALL", ""}, {"LANG", "de_DE"}})) == "de_DE");   // empty is not set
-    CHECK(bcal::choose_locale(none, none, env({})) == "en");
-    CHECK(bcal::choose_locale(none, none, env({{"LANG", "C.UTF-8"}})) == "C.UTF-8");   // means English
-    CHECK(bcal::choose_locale(none, none, env({{"LC_ALL", "what ever!"}, {"LANG", "de_DE"}})) == "en");   // garbage: no language
-    CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(O("../x"), none, env({})); }));
-    CHECK(throws<bcal::ConfigError>([&] { bcal::choose_locale(none, O("../x"), env({})); }));
-  }
-
   // --- languages
   {
     Sandbox sb;
-    const auto en = lang("en"), de = lang("de_DE"), at = lang("de_AT");   // de_DE has no file of its own
+    const auto en = lang("en_US"), de = lang("de_DE"), at = lang("de_AT");
     CHECK(en.month(1) == "January" && en.month(12) == "December" && en.weekday(7) == "Sunday" && en.ui()["pascha"] == "Pascha");
     CHECK(de.month(3) == "März" && de.weekday(3) == "Mittwoch" && de.ui()["date"] == "Datum" && de.month(1) == "Januar");
     CHECK(at.month(1) == "Jänner" && at.month(2) == "Februar" && at.weekday(1) == "Montag" && at.ui()["weekday"] == "Wochentag");
     CHECK(throws<std::out_of_range>([&] { en.month(0); }) && throws<std::out_of_range>([&] { en.weekday(8); }));
 
-    // fallbacks: de_CH -> de_DE (which has no file, so de.yaml) -> en; the fallback is read first,
-    // so the keys of a file replace those of its fallback (ui entry by entry)
+    // fallbacks: de_CH -> de_DE -> en_US; the fallback is read first, so the keys of a file
+    // replace those of its fallback (ui entry by entry)
     const std::string all = "months: [a, b, c, d, e, f, g, h, i, j, k, l]\nweekdays: [a, b, c, d, e, f, g]\n";
     sb.write("fb/cfg.yaml", "lang_dir: [.]\n");
-    sb.write("fb/en.yaml", all + "ui: {date: EN, weekday: EN, data: EN, pascha: EN}\n");
-    sb.write("fb/de.yaml", "fallback: en\nmonths: [J, f, m, a, m, j, j, a, s, o, n, d]\nui: {date: DE, weekday: DE}\n");
+    sb.write("fb/en_US.yaml", all + "ui: {date: EN, weekday: EN, data: EN, pascha: EN}\n");
+    sb.write("fb/de_DE.yaml", "fallback: en_US\nmonths: [J, f, m, a, m, j, j, a, s, o, n, d]\nui: {date: DE, weekday: DE}\n");
     sb.write("fb/de_CH.yaml", "fallback: de_DE\nui: {date: CH}\n");
     const bcal::ByzantineCalConfig fb(sb.dir / "fb/cfg.yaml");
     const bcal::LanguageFileFinder find = [&](const std::string& l) { return fb.find_language_file(l); };
@@ -462,7 +425,7 @@ int main() {
     CHECK(log_of([&] {
       const bcal::Language ch(find("de_CH"), find);
       CHECK(ch.ui()["date"] == "CH" && ch.ui()["weekday"] == "DE" && ch.ui()["data"] == "EN");
-      CHECK(ch.month(1) == "J" && ch.weekday(1) == "a");   // months from de, weekdays from en
+      CHECK(ch.month(1) == "J" && ch.weekday(1) == "a");   // months from de_DE, weekdays from en_US
     }).empty());
 
     // every file is read only once: a circular fallback is ignored with a warning
@@ -488,7 +451,7 @@ int main() {
       return false;
     };
     CHECK(fails("fallback: zz_ZZ\n", 2));                  // no file
-    CHECK(fails("fallback: ../x\n", 1) && fails("fallback: [de]\n", 1) && fails("fallback:\n", 1));
+    CHECK(fails("fallback: [de]\n", 1) && fails("fallback:\n", 1));
     CHECK(fails("fallback: yy\n", 2));
     sb.write("fb/yy.yaml", "ui: {date: Y}\n");
     CHECK(fails("fallback: yy\n", 1));                      // no months in the end
