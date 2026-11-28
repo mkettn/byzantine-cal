@@ -124,9 +124,9 @@ YAML.
   Pascha, not shifted by the offset.
 - **Saints:** `add_saint()` hands a `Saint` ([Saints](saints.md)) to the calendar, which keeps it, and
   puts it on the days of its feasts, with the same rules for the offset, Pascha-relative dates and
-  New Year as `add_day()`. A `CalendarDay` has the list `saints` of `SaintFeast`s, two read-only pointers
-  each: the `saint` and the `feast` that is celebrated. The pointers belong to the calendar, so a
-  `YearCalendar` can be moved but not copied.
+  New Year as `add_day()`. A `CalendarDay` has the list `saints` of read-only pointers to the saints that are celebrated
+  on it, each once. The saints belong to the calendar, so a `YearCalendar` can be moved but not
+  copied.
 - **Errors:** the constructor throws `std::invalid_argument` for a year outside 1..9999, and `at()`
   throws `std::out_of_range` for a date that is not in the year.
 

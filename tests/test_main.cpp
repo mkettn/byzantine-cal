@@ -627,10 +627,9 @@ int main() {
     const bcal::Saint& n = c.add_saint(saint("Nicholas", {{D("25.12"), "feast"}, {D("p+7"), "relics"}, {D("30.02"), "never"}}));
     c.add_saint(saint("Ann", {{D("25.12"), ""}, {D("01.01"), ""}}));
     CHECK(n.name == "Nicholas" && n.feasts.size() == 3);
-    CHECK(c.at(1, 7).saints.size() == 2 && c.at(1, 7).saints[0].saint == &n);      // 25.12 + 13 days, in the order added
-    CHECK(c.at(1, 7).saints[0].feast == &n.feasts[0] && c.at(1, 7).saints[0].feast->title == "feast");
-    CHECK(c.at(1, 7).saints[1].saint->name == "Ann" && c.at(1, 14).saints[0].saint->name == "Ann");  // 01.01 + 13
-    CHECK(c.at(4, 19).saints.size() == 1 && c.at(4, 19).saints[0].feast->title == "relics");        // Pascha 12.04 + 7
+    CHECK(c.at(1, 7).saints.size() == 2 && c.at(1, 7).saints[0] == &n);      // 25.12 + 13 days, in the order added
+    CHECK(c.at(1, 7).saints[1]->name == "Ann" && c.at(1, 14).saints[0]->name == "Ann");  // 01.01 + 13
+    CHECK(c.at(4, 19).saints.size() == 1 && c.at(4, 19).saints[0] == &n);        // Pascha 12.04 + 7
     CHECK(c.at(1, 8).saints.empty() && !c.at(1, 7).has_rule());                                      // separate from the rules
     c.add_day(D("25.12"), "x");
     CHECK(c.at(1, 7).has_rule() && c.at(1, 7).saints.size() == 2);
@@ -639,10 +638,13 @@ int main() {
     CHECK(total == 4);                                                                               // 30.02 never exists
     // the saints survive a move, the days still point to them
     bcal::YearCalendar moved(std::move(c));
-    CHECK(moved.at(1, 7).saints[0].saint->name == "Nicholas" && moved.at(1, 7).saints[0].saint->feasts.size() == 3);
+    CHECK(moved.at(1, 7).saints[0]->name == "Nicholas" && moved.at(1, 7).saints[0]->feasts.size() == 3);
+    bcal::YearCalendar twice(2026);
+    twice.add_saint(saint("Twice", {{D("01.03"), "a"}, {D("01.03"), "b"}}));
+    CHECK(twice.at(3, 1).saints.size() == 1);   // listed once
     bcal::YearCalendar leap(2028);                       // 29.02 exists
     leap.add_saint(saint("Leap", {{D("29.02"), ""}, {D("p+3<fri"), ""}}));
-    CHECK(leap.at(2, 29).saints.size() == 1 && leap.at(2, 29).saints[0].saint->name == "Leap");
+    CHECK(leap.at(2, 29).saints.size() == 1 && leap.at(2, 29).saints[0]->name == "Leap");
     bcal::YearCalendar leap13(2028, 13);
     leap13.add_saint(saint("Leap", {{D("29.02"), ""}}));
     CHECK(leap13.at(3, 13).saints.size() == 1 && leap13.at(2, 29).saints.empty());
@@ -656,7 +658,7 @@ int main() {
     bcal::YearCalendar target(2026), source(2027);
     source.add_saint(saint("Moved", {{D("01.01"), ""}}));
     target = std::move(source);
-    CHECK(target.year() == 2027 && target.at(1, 1).saints[0].saint->name == "Moved");
+    CHECK(target.year() == 2027 && target.at(1, 1).saints[0]->name == "Moved");
     // a feast of the previous year's date shifted into this year
     bcal::YearCalendar y(2027, 13);
     y.add_saint(saint("Dec", {{D("25.12"), ""}}));

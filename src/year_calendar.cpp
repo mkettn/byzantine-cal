@@ -74,8 +74,10 @@ void YearCalendar::add_range(const Day& start, const Day& end,
 const Saint& YearCalendar::add_saint(Saint saint) {
   const Saint& kept = saints_.emplace_back(std::move(saint));
   for (const Feast& feast : kept.feasts)
-    place(feast.day, feast.day, all_weekdays(),
-          [&](CalendarDay& day) { day.saints.push_back({&kept, &feast}); });
+    place(feast.day, feast.day, all_weekdays(), [&](CalendarDay& day) {
+      if (std::find(day.saints.begin(), day.saints.end(), &kept) == day.saints.end())
+        day.saints.push_back(&kept);   // once, also with two feasts on the same day
+    });
   return kept;
 }
 

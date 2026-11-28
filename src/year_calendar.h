@@ -12,17 +12,10 @@
 
 namespace bcal {
 
-// A saint celebrated on a day, and which of the feasts of the saint it is. Both belong to the
-// YearCalendar.
-struct SaintFeast {
-  const Saint* saint;
-  const Feast* feast;
-};
-
 struct CalendarDay {
   std::chrono::year_month_day date;
   std::optional<std::string> data;
-  std::vector<SaintFeast> saints;  // in the order the saints were added
+  std::vector<const Saint*> saints;  // owned by the YearCalendar, in the order they were added
 
   bool has_rule() const { return data.has_value(); }
   std::chrono::weekday weekday() const {
