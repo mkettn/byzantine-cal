@@ -117,16 +117,15 @@ YAML.
 
 - **Weekdays** are numbers, 0 (Monday) to 6 (Sunday), in a `bcal::Weekdays` set. `all_weekdays()`
   has all of them.
-- **`add_day()`, `add_range()` and `add_saint()`** ignore dates that do not exist or fall outside the year. The ends
+- **`add_day()`, `add_range()` and `add_entry()`** ignore dates that do not exist or fall outside the year. The ends
   of a range are included, and a range of fixed dates whose end is before its start crosses New Year.
 - **Days** are `CalendarDay`s: the `date`, the `weekday()`, `has_rule()` and `data`, a
   `std::optional<std::string>` that is empty without an entry. `size()` is 365 or 366, and `pascha()` is the Gregorian date of
   Pascha, not shifted by the offset.
-- **Saints:** `add_saint()` hands a `Saint` ([Saints](saints.md)) to the calendar, which keeps it, and
-  puts it on the days of its feasts, with the same rules for the offset, Pascha-relative dates and
-  New Year as `add_day()`. A `CalendarDay` has the list `saints` of read-only pointers to the saints that are celebrated
-  on it, each once. The saints belong to the calendar, so a `YearCalendar` can be moved but not
-  copied.
+- **Entries:** `add_entry()` hands an `Entry` ([Entries](entries.md)) to the calendar, which keeps it, and
+  puts it on its days, with the same rules for the offset, Pascha-relative dates and New Year as
+  `add_day()`. A `CalendarDay` has the list `entries` of read-only pointers to the entries on it,
+  each once. The entries belong to the calendar, so a `YearCalendar` can be moved but not copied.
 - **Errors:** the constructor throws `std::invalid_argument` for a year outside 1..9999, and `at()`
   throws `std::out_of_range` for a date that is not in the year.
 
