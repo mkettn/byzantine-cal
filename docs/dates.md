@@ -117,7 +117,7 @@ YAML.
 
 - **Weekdays** are numbers, 0 (Monday) to 6 (Sunday), in a `bcal::Weekdays` set. `all_weekdays()`
   has all of them.
-- **`add_day()` and `add_range()`** ignore dates that do not exist or fall outside the year. The ends
+- **`add_day()`, `add_range()` and `add_saint()`** ignore dates that do not exist or fall outside the year. The ends
   of a range are included, and a range of fixed dates whose end is before its start crosses New Year.
 - **Days** are `CalendarDay`s: the `date`, the `weekday()`, `has_rule()` and `data`, a
   `std::optional<std::string>` that is empty without an entry. `size()` is 365 or 366, and `pascha()` is the Gregorian date of

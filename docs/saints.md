@@ -42,4 +42,4 @@ the `name`, the `lang`, the `description`, the `feasts` (a `Day` and a `title`) 
 (`de_de` is not `de_DE`). They throw `std::invalid_argument` for an invalid file and
 `ConfigFileError` for one that cannot be read.
 
-`YearCalendar::add_saint()` puts a saint on the days of its feasts, see [Dates](dates.md#from-c).
+`YearCalendar::add_saint()` puts a saint on the days of its feasts, see [Dates](dates.md#using-it-from-c).

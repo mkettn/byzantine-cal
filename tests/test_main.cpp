@@ -640,6 +640,23 @@ int main() {
     // the saints survive a move, the days still point to them
     bcal::YearCalendar moved(std::move(c));
     CHECK(moved.at(1, 7).saints[0].saint->name == "Nicholas" && moved.at(1, 7).saints[0].saint->feasts.size() == 3);
+    bcal::YearCalendar leap(2028);                       // 29.02 exists
+    leap.add_saint(saint("Leap", {{D("29.02"), ""}, {D("p+3<fri"), ""}}));
+    CHECK(leap.at(2, 29).saints.size() == 1 && leap.at(2, 29).saints[0].saint->name == "Leap");
+    bcal::YearCalendar leap13(2028, 13);
+    leap13.add_saint(saint("Leap", {{D("29.02"), ""}}));
+    CHECK(leap13.at(3, 13).saints.size() == 1 && leap13.at(2, 29).saints.empty());
+    bcal::YearCalendar plain(2027);
+    plain.add_saint(saint("Leap", {{D("29.02"), ""}}));
+    plain.add_saint(saint("None", {}));
+    int none = 0;
+    for (const auto& d : plain) none += static_cast<int>(d.saints.size());
+    CHECK(none == 0);
+    // move assignment keeps the pointers valid
+    bcal::YearCalendar target(2026), source(2027);
+    source.add_saint(saint("Moved", {{D("01.01"), ""}}));
+    target = std::move(source);
+    CHECK(target.year() == 2027 && target.at(1, 1).saints[0].saint->name == "Moved");
     // a feast of the previous year's date shifted into this year
     bcal::YearCalendar y(2027, 13);
     y.add_saint(saint("Dec", {{D("25.12"), ""}}));
