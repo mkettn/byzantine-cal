@@ -91,6 +91,10 @@ if(BUILD_TESTING)
   bcal_expect_args(year_old "--year=2026|--old|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "2026-01-07.+Nativity")
   bcal_expect_args(year_data "--year=2026|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "2026-11-16.+note: fast")
   bcal_expect_args(year_markdown "--year=2026|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12.+## April.+2026-04-12 \\| Sunday")
+  bcal_expect_args(format_ics "--year=2026|--old|--format=ics|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "BEGIN:VCALENDAR.+DTSTART;VALUE=DATE:20260107.+SUMMARY:.name: Nativity\\\\, rule")
+  bcal_expect_args(format_markdown "--year=2026|--format=markdown|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "# 2026")
+  bcal_expect_args(format_unknown "--year=2026|--format=html|${NATIVITY}" 3 "format must be markdown or ics")
+  bcal_expect_args(format_without_year "--format=ics|${NATIVITY}" 3 "need --year")
   bcal_expect_args(year_markdown_escaped "--year=2026|-C|${CFG}/bcal.yaml|${CMAKE_CURRENT_SOURCE_DIR}/tests/year/special.yml" 0
                    "Theophany\\\\_Feast.+has \\\\`tick\\\\` \\\\\\| pipe")
   # Languages. 7 January 2026 is a Wednesday: with --old the Nativity fast ends on it.

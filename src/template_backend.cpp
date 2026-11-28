@@ -16,10 +16,12 @@ nlohmann::json day_to_json(const CalendarDay& d, const Language& language) {
   const int y = static_cast<int>(d.date.year());
   const unsigned m = static_cast<unsigned>(d.date.month());
   const unsigned dd = static_cast<unsigned>(d.date.day());
-  char iso[16];
+  char iso[16], basic[16];
   std::snprintf(iso, sizeof iso, "%04d-%02u-%02u", y, m, dd);
+  std::snprintf(basic, sizeof basic, "%04d%02u%02u", y, m, dd);
   const int weekday = static_cast<int>(d.weekday().iso_encoding());
   return {{"date", iso},
+          {"date_basic", basic},
           {"year", y},
           {"month", m},
           {"day", dd},
@@ -42,6 +44,42 @@ std::string escape_markdown(const std::string& text) {
     if (std::string_view("\\`*_{}[]()<>#+-.!|~&").find(c) != std::string_view::npos)
       out += '\\';
     out += c;
+  }
+  return out;
+}
+
+std::string escape_ics(const std::string& text) {
+  std::string out;
+  for (const char c : text) {
+    if (c == '\r') continue;
+    if (c == '\n') {
+      out += "\\n";
+      continue;
+    }
+    if (c == '\\' || c == ';' || c == ',') out += '\\';
+    out += c;
+  }
+  return out;
+}
+
+std::string fold_ics(const std::string& text) {
+  constexpr size_t kMax = 75;  // octets per line, without the CRLF
+  std::string out;
+  size_t pos = 0;
+  while (pos < text.size()) {
+    size_t end = text.find('\n', pos);
+    if (end == std::string::npos) end = text.size();
+    size_t start = pos;
+    size_t limit = kMax;
+    while (end - start > limit) {
+      size_t cut = start + limit;
+      while (cut > start && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;  // not inside a UTF-8 character
+      out.append(text, start, cut - start).append("\r\n ");
+      start = cut;
+      limit = kMax - 1;  // the leading space counts
+    }
+    out.append(text, start, end - start).append("\r\n");
+    pos = end + 1;
   }
   return out;
 }
@@ -79,6 +117,9 @@ std::string render_template(const YearCalendar& calendar, const Language& langua
     env.set_lstrip_blocks(true);
     env.add_callback("escape_markdown", 1, [](inja::Arguments& args) {
       return escape_markdown(args.at(0)->get<std::string>());
+    });
+    env.add_callback("escape_ics", 1, [](inja::Arguments& args) {
+      return escape_ics(args.at(0)->get<std::string>());
     });
     return env.render(template_text, calendar_to_json(calendar, language));
   } catch (const std::exception& e) {

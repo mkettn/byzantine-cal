@@ -2,18 +2,25 @@
 
 The output is produced by a *backend* that renders the calendar of a year with a template. The
 templates use [inja](https://github.com/pantor/inja), a template engine with a Jinja-like syntax. The
-program renders Markdown with the template `markdown.inja`; another format (HTML, ICS, ...) needs
-another template and a backend class for it, see below.
+program has two formats, chosen with `--format`: Markdown (`markdown.inja`, the default) and iCalendar
+(`ics`, `ics.inja`). Another format (HTML, ...) needs another template and a backend class for it,
+see below.
 
 ## The Markdown template
 
-`tpl/markdown.inja` is the template of the Markdown backend, which is the one the program uses. It
-is installed with the program and found through the `template_dir` option of the
+`tpl/markdown.inja` is the template of the Markdown backend. It is installed with the program and found through the `template_dir` option of the
 [configuration](configuration.md). To change the output, copy it, edit the copy and put its directory
 first in `template_dir`.
 
 The result has a heading with the year, the date of Pascha, and a table for each month that has a
 day with an entry.
+
+## The iCalendar template
+
+`tpl/ics.inja` makes an iCalendar file (RFC 5545) that calendar apps can import: one all-day event
+for every day with an entry, whose summary is the `data` of the entry. The events have a stable
+`UID` (the date), so importing the file again does not duplicate them. The backend turns the line
+ends into CRLF and folds lines longer than 75 octets, so the template does neither.
 
 ## Data
 
@@ -33,6 +40,7 @@ A day has:
 | Name | Content |
 |---|---|
 | `date` | `YYYY-MM-DD`. |
+| `date_basic` | `YYYYMMDD`. |
 | `year`, `month`, `day` | The parts of the date, as numbers. |
 | `weekday` | 1 (Monday) to 7 (Sunday). |
 | `weekday_name` | The name of the weekday in the language. |
@@ -49,6 +57,7 @@ backend adds:
 - **`escape_markdown(text)`** puts a backslash before every character that has a meaning in
   Markdown, and turns newlines into `<br>`. Use it for anything that is not controlled by the
   template, which is the data and the language texts.
+- **`escape_ics(text)`** escapes `\`, `;`, `,` and newlines for an iCalendar text value.
 - **Whitespace:** a block (`{% ... %}`) that is alone on its line leaves no empty line behind.
 - **Line statements** start with `%%`. Inja's default, `##`, would be a Markdown heading.
 
@@ -75,8 +84,8 @@ argument) is an error, see the exit status in the [README](../README.md#run).
 ## From C++
 
 The backends are in `src/template_backend.h`. `TemplateBackend` reads the template from the file
-whose path it is given. `MarkdownBackend` is the Markdown backend, and its template is called
-`MarkdownBackend::kTemplateFile` (`markdown.inja`).
+whose path it is given. `MarkdownBackend` and `IcsBackend` are the two formats, and their templates are called
+`MarkdownBackend::kTemplateFile` (`markdown.inja`) and `IcsBackend::kTemplateFile` (`ics.inja`).
 
 ```cpp
 bcal::MarkdownBackend backend(config.find_template(bcal::MarkdownBackend::kTemplateFile));
@@ -89,4 +98,5 @@ std::string text = backend.render(calendar, language);   // TemplateFileError / 
 `calendar_to_json()` builds the data described above, and `render_template()` renders a template
 text with it. `TemplateFileError` (a `TemplateError`) is thrown for a template that cannot be read,
 and `TemplateError` for one that is invalid or fails to render, for whatever reason. A new format
-needs its own template and a class like `MarkdownBackend` that names it.
+needs its own template and a class like `MarkdownBackend` that names it; a class that has to post-process
+the result (like `IcsBackend`) overrides `render()`.

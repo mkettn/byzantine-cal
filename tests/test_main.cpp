@@ -298,6 +298,23 @@ int main() {
     CHECK(throws<bcal::TemplateFileError>([] { bcal::MarkdownBackend("/no/such/file.inja"); }));
   }
 
+  {
+    CHECK(bcal::escape_ics("a,b;c\\d\r\ne") == "a\\,b\\;c\\\\d\\ne" && bcal::escape_ics("") == "");
+    CHECK(bcal::fold_ics("a\nb\n") == "a\r\nb\r\n" && bcal::fold_ics("") == "");
+    const auto folded = bcal::fold_ics(std::string(80, 'x') + "\n");
+    CHECK(folded == std::string(75, 'x') + "\r\n " + std::string(5, 'x') + "\r\n");
+    // 74 octets, then a 2-octet character that would end at octet 76: it moves to the next line
+    CHECK(bcal::fold_ics(std::string(74, 'x') + "\xC3\xA4\n") == std::string(74, 'x') + "\r\n \xC3\xA4\r\n");
+    bcal::YearCalendar c(2026, 13);
+    c.add_day(D("25.12"), "Nativity, a;b");
+    const auto ics = bcal::IcsBackend(std::string(BCAL_TPL_DIR) + "/" + bcal::IcsBackend::kTemplateFile)
+                         .render(c, lang());
+    CHECK(ics.find("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n") == 0);
+    CHECK(ics.find("BEGIN:VEVENT\r\nUID:2026-01-07@byzantine-cal\r\nDTSTAMP:20260107T000000Z\r\n"
+                   "DTSTART;VALUE=DATE:20260107\r\nSUMMARY:Nativity\\, a\\;b\r\nEND:VEVENT\r\n") != std::string::npos);
+    CHECK(ics.rfind("END:VCALENDAR\r\n") == ics.size() - 15);
+  }
+
   // --- configuration
   {
     namespace fs = std::filesystem;

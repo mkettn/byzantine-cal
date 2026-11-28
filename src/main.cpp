@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -31,7 +32,7 @@ and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
   byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]
-                [--lang=<language>]]
+                [--lang=<language>] [--format=<format>]]
                 <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
@@ -40,8 +41,7 @@ Options:
   -v --verbose  Show debug output.
   -q --quiet    Only show errors.
   -y <year>, --year=<year>
-                Generate the calendar of this year and render it as
-                Markdown.
+                Generate the calendar of this year and render it.
   --old         Old (Julian) calendar: shift all fixed (DD.MM) dates by
                 13 days, e.g. 25.12 becomes 7 January. Pascha dates are
                 not shifted. Needs --year.
@@ -52,6 +52,9 @@ Options:
                 Language of month and weekday names: the name of a language file
                 in a lang_dir of the configuration, e.g. de_DE. Overrides the
                 language option of the configuration. Needs --year.
+  -f <format>, --format=<format>
+                Output format: markdown (default) or ics (iCalendar, one
+                all-day event for every day with an entry). Needs --year.
   -C <file>     Configuration file (it names the template and language
                 directories).
                 Default: bcal.yaml in the current directory, otherwise the
@@ -92,9 +95,14 @@ int main(int argc, char** argv) {
   if (generate ? !parse_int(args["--year"].asString(), year) ||
                      year < bcal::kMinYear || year > bcal::kMaxYear
                : args["--old"].asBool() || args["--output"] || args["-C"] ||
-                     args["--lang"]) {
+                     args["--lang"] || args["--format"]) {
     std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old, --output, --lang and -C need --year\n");
+                                  : "--old, --output, --lang, --format and -C need --year\n");
+    return 3;
+  }
+  const std::string format = args["--format"] ? args["--format"].asString() : "markdown";
+  if (format != "markdown" && format != "ics") {
+    spdlog::error("format must be markdown or ics");
     return 3;
   }
   const int offset_days =
@@ -133,7 +141,9 @@ int main(int argc, char** argv) {
         args["-C"] ? std::optional<std::string>(args["-C"].asString()) : std::nullopt,
         BCAL_CONFIG_FILE));
     spdlog::debug("configuration {}", config.file().string());
-    const auto template_path = config.find_template(bcal::MarkdownBackend::kTemplateFile);
+    const bool ics = format == "ics";
+    const auto template_path = config.find_template(
+        ics ? bcal::IcsBackend::kTemplateFile : bcal::MarkdownBackend::kTemplateFile);
     const auto name = args["--lang"] ? std::optional<std::string>(args["--lang"].asString())
                                      : config.language();
     if (!name)
@@ -141,8 +151,10 @@ int main(int argc, char** argv) {
     spdlog::debug("language {}", *name);
     const auto find = [&](const std::string& l) { return config.find_language_file(l); };
     const bcal::Language language(find(*name), find);
-    text = bcal::MarkdownBackend(template_path)
-               .render(bcal::load_year_calendar(root, year, offset_days), language);
+    const std::unique_ptr<bcal::TemplateBackend> backend =
+        ics ? std::unique_ptr<bcal::TemplateBackend>(std::make_unique<bcal::IcsBackend>(template_path))
+            : std::make_unique<bcal::MarkdownBackend>(template_path);
+    text = backend->render(bcal::load_year_calendar(root, year, offset_days), language);
   } catch (const bcal::ConfigFileError& e) {
     spdlog::error("{}", e.what());
     return 2;
