@@ -77,8 +77,9 @@ cmake --build build -j
 cmake --install build
 ```
 
-The program goes to `<prefix>/bin`, the configuration `config/config.yaml` and the templates in
-`tpl/` to `<prefix>/lib/byzantine-cal` (`/usr/local/lib/byzantine-cal/config.yaml` by default).
+The program goes to `<prefix>/bin`, the configuration `config/config.yaml`, the templates in `tpl/`
+and the language files in `lang/` to `<prefix>/lib/byzantine-cal`
+(`/usr/local/lib/byzantine-cal/config.yaml` by default).
 The prefix is compiled in, so it has to be set when configuring, not when installing.
 
 ## Configuration
@@ -89,6 +90,8 @@ The configuration is read from a YAML file (`ByzantineCalConfig`, `src/byzantine
 template_dir:          # directories to look for templates, in this order
   - /usr/share/tpl     # an absolute name, or
   - tpl                # a name relative to the directory of this file
+lang_dir: [lang]       # directories to look for language files, the same way
+language: de_DE        # the language: the file de_DE.yaml in a lang_dir (see Languages)
 ```
 
 Relative names are relative to the directory of the path the file is given by (a symlink is not
@@ -98,7 +101,39 @@ followed). Unknown options, an option that is set twice and several YAML documen
 2. `bcal.yaml` in the current directory (if there is something with that name it is used, and
    reported if it cannot be read),
 3. `config.yaml` in the installation directory (`/usr/local/lib/byzantine-cal/config.yaml`),
-   which names the installed `tpl` directory.
+   which names the installed `tpl` and `lang` directories.
+
+## Languages
+
+Month and weekday names and the texts of the templates come from a language file, a YAML file in a
+`lang_dir` of the [configuration](#configuration). `lang/en_US.yaml`:
+
+```yaml
+months: [January, ..., December]     # 12 names
+weekdays: [Monday, ..., Sunday]      # 7 names, Monday first
+ui: {date: Date, weekday: Weekday, data: Data, pascha: Pascha}   # texts for templates: `ui.date` etc.
+```
+
+The language is the `language:` option of the configuration, and `--lang=<language>` overrides it;
+the environment is not looked at. The value is not checked: `language: foobar` uses the file
+`foobar.yaml` from the first `lang_dir` that has it, and it is an error if there is none (also if no
+language is set). The installed configuration sets `en_US` and ships `en_US`, `de_DE` and `de_AT`.
+
+Every key is optional in a file, and a file can name a **fallback** language, again the name of a
+language file:
+
+```yaml
+fallback: de_DE      # de_CH.yaml: everything else is as in de_DE
+ui: {date: Datum}
+```
+
+The fallback is read first and the keys of the file replace its keys (`ui` entry by entry), then
+the fallback of the fallback, and so on: `lang/de_AT.yaml` (`fallback: de_DE`) only holds the months,
+`de_DE.yaml` has `fallback: en_US`. A file is read only once: a reference to a file that was read
+already (a circular fallback) is logged as a warning and ignored. The months and weekdays have to be
+there at the end. The shipped Markdown template needs `ui.date`, `ui.weekday`, `ui.data` and `ui.pascha`,
+so the language (or a fallback) has to define them, or the template fails with a "variable not found"
+error. The template escapes the texts; the calendar file itself is not translated.
 
 ## Year calendar
 
@@ -150,7 +185,8 @@ std::string text = backend.render(calendar);   // TemplateFileError / TemplateEr
 Templates get the calendar as JSON (`calendar_to_json()`): `year`, `offset_days`, `pascha`
 (`YYYY-MM-DD`), all `days` and the `months` (`number`, `name`, `rule_count`, `days`). A day has
 `date` (`YYYY-MM-DD`), `year`, `month`, `day`, `weekday` (1 = Monday .. 7 = Sunday),
-`weekday_name`, `has_rule` and `data` (empty without a rule). Besides the inja built-ins there is
+`weekday_name`, `has_rule` and `data` (empty without a rule). `name` and `weekday_name` are in the
+language, and `ui` holds its texts. Besides the inja built-ins there is
 `escape_markdown(text)`, which backslash-escapes everything that has a meaning in Markdown
 (newlines become `<br>`). Blocks (`{% ... %}`) alone on a line leave no empty line behind, and line
 statements start with `%%` (inja's default `##` is a Markdown heading).
@@ -158,7 +194,7 @@ statements start with `%%` (inja's default `##` is a Markdown heading).
 ## Usage
 
 ```bash
-byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]] <yaml_file>
+byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>] [--lang=<language>]] <yaml_file>
 ```
 
 Without `--year` the file is only checked. With `--year` the calendar of that year is
@@ -170,6 +206,7 @@ byzantine-cal --year=2026 calendar.yml > calendar.md
 byzantine-cal --year=2026 --old calendar.yml           # old calendar: 25.12. -> 7 January
 byzantine-cal --year=2026 --output=2026.md calendar.yml
 byzantine-cal --year=2026 -C my-config.yaml calendar.yml
+byzantine-cal --year=2026 --lang=de_DE calendar.yml     # German month and weekday names
 ```
 
-Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file or template is found, `3` wrong command line.
+Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file, template or language file is found, `3` wrong command line.

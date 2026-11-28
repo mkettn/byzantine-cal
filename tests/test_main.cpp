@@ -2,11 +2,16 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 
 #include "day.h"
 #include "pascha.h"
 #include "template_backend.h"
+#include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/spdlog.h>
+
 #include "byzantine_cal_config.h"
 #include "calendar_loader.h"
 #include "validator.h"
@@ -45,7 +50,34 @@ static bool throws(F f) {
   try { f(); } catch (const E&) { return true; }
   return false;
 }
+// A directory of its own that is removed, and the working directory restored, also if a check throws.
+struct Sandbox {
+  std::filesystem::path dir = std::filesystem::temp_directory_path() /
+      ("bcal-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+  std::filesystem::path cwd = std::filesystem::current_path();
+  Sandbox() { std::filesystem::create_directories(dir); }
+  ~Sandbox() {
+    std::error_code ec;
+    std::filesystem::current_path(cwd, ec);
+    std::filesystem::remove_all(dir, ec);
+  }
+  std::filesystem::path write(const char* name, const std::string& text) const {
+    std::filesystem::create_directories((dir / name).parent_path());
+    std::ofstream(dir / name) << text;
+    return dir / name;
+  }
+};
 static bcal::Day D(const char* s) { return *bcal::parse_day(s).day; }
+// A language from the language files of the sources.
+static bcal::Language lang(const char* name = "en_US") {
+  static const bcal::ByzantineCalConfig config(BCAL_TEST_CONFIG);
+  return bcal::Language(config.find_language_file(name),
+                        [&](const std::string& l) { return config.find_language_file(l); });
+}
+// For language files without a fallback.
+static const bcal::LanguageFileFinder no_fallback = [](const std::string& l) -> std::filesystem::path {
+  throw bcal::ConfigFileError("no language file for " + l);
+};
 
 int main() {
   for (auto s : {"25.12", "6.1", "06.01", "29.02", "31.12", "p", "p+39", "p-7d",
@@ -213,7 +245,7 @@ int main() {
     bcal::YearCalendar c(2026, 13);
     c.add_day(D("25.12"), "Nativity");
     c.add_range(D("p"), D("p+1d"), bcal::all_weekdays(), "a|b");
-    auto j = bcal::calendar_to_json(c);
+    auto j = bcal::calendar_to_json(c, lang());
     CHECK(j["year"] == 2026 && j["offset_days"] == 13 && j["pascha"] == "2026-04-12");
     CHECK(j["days"].size() == 365 && j["months"].size() == 12);
     CHECK(j["months"][0]["name"] == "January" && j["months"][0]["rule_count"] == 1);
@@ -225,7 +257,12 @@ int main() {
     CHECK(d["has_rule"] == true && d["data"] == "Nativity");
     CHECK(j["days"][0]["has_rule"] == false && j["days"][0]["data"] == "");
 
-    auto render = [&](const char* t) { return bcal::render_template(c, t); };
+    // the names and texts of the language
+    auto jd = bcal::calendar_to_json(c, lang("de_AT"));
+    CHECK(jd["months"][0]["name"] == "Jänner" && jd["months"][1]["name"] == "Februar");
+    CHECK(jd["months"][0]["days"][6]["weekday_name"] == "Mittwoch" && jd["ui"]["date"] == "Datum");
+    CHECK(j["ui"]["date"] == "Date" && j["ui"]["pascha"] == "Pascha");
+    auto render = [&](const char* t) { return bcal::render_template(c, lang(), t); };
     CHECK(render("{{ year }}/{{ pascha }}") == "2026/2026-04-12");
     CHECK(render("## {{ year }}") == "## 2026");                      // not an inja line statement
     CHECK(render("{% for d in days %}\n{% if d.has_rule %}\n{{ d.date }}={{ d.data }};\n"
@@ -250,9 +287,9 @@ int main() {
     bcal::YearCalendar c(2026, 13);
     c.add_day(D("25.12"), "Nativity|x");
     auto test_tpl = [](const char* name) { return std::string(BCAL_TEST_TPL_DIR) + "/" + name; };
-    CHECK(bcal::TemplateBackend(test_tpl("list.txt.inja")).render(c) == "2026-01-07;3;Nativity|x\n");
+    CHECK(bcal::TemplateBackend(test_tpl("list.txt.inja")).render(c, lang()) == "2026-01-07;3;Nativity|x\n");
     const auto md = bcal::MarkdownBackend(std::string(BCAL_TPL_DIR) + "/" +
-                                          bcal::MarkdownBackend::kTemplateFile).render(c);
+                                          bcal::MarkdownBackend::kTemplateFile).render(c, lang());
     CHECK(md.find("# 2026\n\nPascha: 2026-04-12\n\n## January\n") == 0);
     CHECK(md.find("| 2026-01-07 | Wednesday | Nativity\\|x |\n") != std::string::npos);
     CHECK(md.find("## February") == std::string::npos);            // no rules: no table
@@ -264,17 +301,7 @@ int main() {
   // --- configuration
   {
     namespace fs = std::filesystem;
-    // A directory of its own that is removed, and the working directory restored, also if a check throws.
-    struct Sandbox {
-      fs::path dir = fs::temp_directory_path() /
-                     ("bcal-config-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-      fs::path cwd = fs::current_path();
-      ~Sandbox() {
-        std::error_code ec;
-        fs::current_path(cwd, ec);
-        fs::remove_all(dir, ec);
-      }
-    } sandbox;
+    Sandbox sandbox;
     const fs::path& dir = sandbox.dir;
     fs::create_directories(dir / "a" / "tpl" / "dirname");
     fs::create_directories(dir / "b");
@@ -298,7 +325,7 @@ int main() {
     // the path can be given to a backend as it is
     write("a/tpl/markdown.inja", "year {{ year }}");
     CHECK(bcal::MarkdownBackend(c.find_template(bcal::MarkdownBackend::kTemplateFile))
-              .render(bcal::YearCalendar(2026)) == "year 2026");
+              .render(bcal::YearCalendar(2026), lang()) == "year 2026");
     try {
       c.find_template("none.inja");
     } catch (const bcal::ConfigFileError& e) {
@@ -321,7 +348,8 @@ int main() {
     for (const char* bad : {"- a\n", "template_dir: tpl\n", "template_dir:\n", "template_dir: [[a]]\n",
                             "template_dir: ['']\n", "template_dirs: [a]\n", "template_dir: [a]\nx: 1\n",
                             "template_dir: [a\n", "template_dir: [a]\ntemplate_dir: [b]\n",
-                            "template_dir: [a]\n---\ntemplate_dir: [b]\n"})
+                            "template_dir: [a]\n---\ntemplate_dir: [b]\n", "lang_dir: lang\n", "lang_dir: [[a]]\n",
+                            "lang_dir: [a]\nlang_dir: [b]\n", "language: [de]\n", "language:\n", "language: de_DE\nlanguage: en\n"})
       CHECK(kind(bad) == 1);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig(dir / "nope.yaml"); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig{dir}; }));   // a directory
@@ -331,6 +359,20 @@ int main() {
       const std::string what = e.what();
       CHECK(what.find("x.yaml:2: unknown option \"template_dirs\"") != std::string::npos);
     }
+
+    // lang_dir and language: <language>.yaml in the first lang_dir that has it, any name
+    fs::create_directories(dir / "a" / "lang");
+    fs::create_directories(dir / "b" / "lang");
+    write("a/lang/de_DE.yaml", "");
+    write("b/lang/de_DE.yaml", "");
+    write("b/lang/foo.bar.yaml", "");
+    const bcal::ByzantineCalConfig lc(write("a/l.yaml", "lang_dir: [lang, ../b/lang]\nlanguage: de_AT\n"));
+    CHECK(lc.language() == "de_AT" && !c.language());
+    CHECK(lc.find_language_file("de_DE") == dir / "a/lang/de_DE.yaml");
+    CHECK(lc.find_language_file("foo.bar") == dir / "b/lang/foo.bar.yaml");   // no check of the name
+    CHECK(throws<bcal::ConfigFileError>([&] { lc.find_language_file("de"); }));   // only <name>.yaml
+    CHECK(throws<bcal::ConfigFileError>([&] { c.find_language_file("de_DE"); }));        // no lang_dir
+    CHECK(bcal::ByzantineCalConfig(write("o.yaml", "language: any thing!\n")).language() == "any thing!");
 
     // which file: -C, else bcal.yaml in the working directory, else the installed one
     const std::string installed = (dir / "a" / "bcal.yaml").string();
@@ -352,6 +394,107 @@ int main() {
       CHECK(found == "bcal.yaml");
       CHECK(throws<bcal::ConfigFileError>([&] { bcal::ByzantineCalConfig{found}; }));
     }
+  }
+
+  // --- languages
+  {
+    Sandbox sb;
+    const auto en = lang("en_US"), de = lang("de_DE"), at = lang("de_AT");
+    CHECK(en.month(1) == "January" && en.month(12) == "December" && en.weekday(7) == "Sunday" && en.ui()["pascha"] == "Pascha");
+    CHECK(de.month(3) == "März" && de.weekday(3) == "Mittwoch" && de.ui()["date"] == "Datum" && de.month(1) == "Januar");
+    CHECK(at.month(1) == "Jänner" && at.month(2) == "Februar" && at.weekday(1) == "Montag" && at.ui()["weekday"] == "Wochentag");
+    CHECK(throws<std::out_of_range>([&] { en.month(0); }) && throws<std::out_of_range>([&] { en.weekday(8); }));
+
+    // fallbacks: de_CH -> de_DE -> en_US; the fallback is read first, so the keys of a file
+    // replace those of its fallback (ui entry by entry)
+    const std::string all = "months: [a, b, c, d, e, f, g, h, i, j, k, l]\nweekdays: [a, b, c, d, e, f, g]\n";
+    sb.write("fb/cfg.yaml", "lang_dir: [.]\n");
+    sb.write("fb/en_US.yaml", all + "ui: {date: EN, weekday: EN, data: EN, pascha: EN}\n");
+    sb.write("fb/de_DE.yaml", "fallback: en_US\nmonths: [J, f, m, a, m, j, j, a, s, o, n, d]\nui: {date: DE, weekday: DE}\n");
+    sb.write("fb/de_CH.yaml", "fallback: de_DE\nui: {date: CH}\n");
+    const bcal::ByzantineCalConfig fb(sb.dir / "fb/cfg.yaml");
+    const bcal::LanguageFileFinder find = [&](const std::string& l) { return fb.find_language_file(l); };
+    auto log_of = [](auto f) {   // what is logged while f runs
+      std::ostringstream log;
+      const auto old = spdlog::default_logger();
+      spdlog::set_default_logger(std::make_shared<spdlog::logger>("t", std::make_shared<spdlog::sinks::ostream_sink_mt>(log)));
+      f();
+      spdlog::set_default_logger(old);
+      return log.str();
+    };
+    CHECK(log_of([&] {
+      const bcal::Language ch(find("de_CH"), find);
+      CHECK(ch.ui()["date"] == "CH" && ch.ui()["weekday"] == "DE" && ch.ui()["data"] == "EN");
+      CHECK(ch.month(1) == "J" && ch.weekday(1) == "a");   // months from de_DE, weekdays from en_US
+    }).empty());
+
+    // every file is read only once: a circular fallback is ignored with a warning
+    sb.write("fb/aa.yaml", "fallback: bb\nui: {date: A}\n");
+    sb.write("fb/bb.yaml", "fallback: aa\n" + all + "ui: {date: B, weekday: B}\n");
+    sb.write("fb/ss.yaml", "fallback: ss\n" + all);   // its own fallback
+    const auto warnings = [](const std::string& log) {
+      std::size_t n = 0;
+      for (auto at = log.find("already read"); at != std::string::npos; at = log.find("already read", at + 1)) ++n;
+      return n;
+    };
+    CHECK(warnings(log_of([&] {
+      const bcal::Language a(find("aa"), find);
+      CHECK(a.ui()["date"] == "A" && a.ui()["weekday"] == "B" && a.month(2) == "b");
+    })) == 1);
+    CHECK(warnings(log_of([&] { bcal::Language(find("ss"), find); })) == 1);
+
+    // errors of fallbacks
+    auto fails = [&](const std::string& text, int expected) {   // 1 = invalid, 2 = a file is missing
+      try { bcal::Language(sb.write("fb/x.yaml", text), find); }
+      catch (const bcal::ConfigFileError&) { return expected == 2; }
+      catch (const bcal::ConfigError&) { return expected == 1; }
+      return false;
+    };
+    CHECK(fails("fallback: zz_ZZ\n", 2));                  // no file
+    CHECK(fails("fallback: [de]\n", 1) && fails("fallback:\n", 1));
+    CHECK(fails("fallback: yy\n", 2));
+    sb.write("fb/yy.yaml", "ui: {date: Y}\n");
+    CHECK(fails("fallback: yy\n", 1));                      // no months in the end
+    sb.write("fb/yy.yaml", "months: [a]\n");
+    CHECK(fails("fallback: yy\n" + all, 1));                // the fallback file is invalid
+
+    const std::string twelve = "[a, b, c, d, e, f, g, h, i, j, k, l]", seven = "[a, b, c, d, e, f, g]";
+    auto kind = [&](const std::string& text) {   // 0 = fine, 1 = invalid, 2 = cannot be read
+      try { bcal::Language(sb.write("x.yaml", text), no_fallback); }
+      catch (const bcal::ConfigFileError&) { return 2; }
+      catch (const bcal::ConfigError&) { return 1; }
+      return 0;
+    };
+    CHECK(kind("months: " + twelve + "\nweekdays: " + seven + "\n") == 0);
+    CHECK(kind("months: " + twelve + "\nweekdays: " + seven + "\nui: {a: b}\n") == 0);
+    for (const std::string& bad : std::vector<std::string>{
+             "months: [a, b]\nweekdays: " + seven + "\n",                              // 2 months
+             "months: [a, b, c, d, e, f, g, h, i, j, k, [l]]\nweekdays: " + seven + "\n",
+             "months: [a, b, c, d, e, f, g, h, i, j, k, '']\nweekdays: " + seven + "\n",
+             "months: [a, b, c, d, e, f, g, h, i, j, k, ' ']\nweekdays: " + seven + "\n",   // blank name
+             "months: " + twelve + "\nweekdays: " + seven + "\nui: [a]\n",
+             "months: " + twelve + "\nweekdays: " + seven + "\ncolours: []\n",
+             "- a\n", "months: [a\n", "",                                                // not a map, syntax, nothing
+             "months: " + twelve + "\n",                                                  // no weekdays
+             "weekdays: " + seven + "\n",                                                 // no months
+             "months: " + twelve + "\nweekdays: " + seven + "\n---\nui: {}\n"})        // two documents
+      CHECK(kind(bad) == 1);
+    try {
+      bcal::Language(sb.write("y.yaml", "months: [a, b]\n"), no_fallback);
+    } catch (const bcal::ConfigError& e) {
+      CHECK(std::string(e.what()).find("y.yaml:1: months must be a list of 12 names") != std::string::npos);
+    }
+    // the Markdown template escapes the texts of a language
+    bcal::YearCalendar yc(2026, 13);
+    yc.add_day(D("25.12"), "x");
+    const auto md = bcal::MarkdownBackend(std::string(BCAL_TPL_DIR) + "/markdown.inja")
+                        .render(yc, bcal::Language(sb.write("xx.yaml",
+                            "months: ['Jan|x', b, c, d, e, f, g, h, i, j, k, l]\nweekdays: [a, b, 'W|3', d, e, f, g]\n"
+                            "ui: {date: 'Da|te', weekday: w, data: d, pascha: '# P'}\n"), no_fallback));
+    CHECK(md.find("## Jan\\|x") != std::string::npos && md.find("| Da\\|te |") != std::string::npos);
+    CHECK(md.find("\\# P: 2026-04-12") != std::string::npos && md.find("| 2026-01-07 | W\\|3 |") != std::string::npos);
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language(sb.dir / "nope.yaml", no_fallback); }));
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language(sb.dir, no_fallback); }));   // a directory
   }
 
   // --- invalid input / parameters

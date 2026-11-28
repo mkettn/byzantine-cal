@@ -15,14 +15,15 @@ find_package(docopt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(inja REQUIRED)
 
-# The program is installed to <prefix>/bin, the configuration (config/config.yaml) and
-# the templates (tpl/) to <prefix>/lib/byzantine-cal. The prefix is CMAKE_INSTALL_PREFIX
+# The program is installed to <prefix>/bin, the configuration (config/config.yaml), the
+# templates (tpl/) and the language files (lang/) to <prefix>/lib/byzantine-cal. The prefix is CMAKE_INSTALL_PREFIX
 # (default /usr/local); set it when configuring, e.g. -DCMAKE_INSTALL_PREFIX=/usr.
 set(BCAL_CONFIG_FILE "${CMAKE_INSTALL_PREFIX}/lib/byzantine-cal/config.yaml")
 
 add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp
             src/year_calendar.cpp src/calendar_loader.cpp
-            src/template_backend.cpp src/byzantine_cal_config.cpp)
+            src/template_backend.cpp src/byzantine_cal_config.cpp
+            src/language.cpp)
 target_include_directories(bcal PUBLIC src)
 target_link_libraries(bcal PUBLIC yaml-cpp::yaml-cpp spdlog::spdlog
                       nlohmann_json::nlohmann_json pantor::inja)
@@ -37,6 +38,7 @@ target_compile_options(byzantine-cal PRIVATE -Wall -Wextra -Wpedantic)
 install(TARGETS byzantine-cal RUNTIME DESTINATION bin)
 install(FILES config/config.yaml DESTINATION lib/byzantine-cal)
 install(DIRECTORY tpl/ DESTINATION lib/byzantine-cal/tpl)
+install(DIRECTORY lang/ DESTINATION lib/byzantine-cal/lang)
 
 include(CTest)
 if(BUILD_TESTING)
@@ -44,7 +46,8 @@ if(BUILD_TESTING)
   target_link_libraries(bcal-tests PRIVATE bcal)
   target_compile_definitions(bcal-tests PRIVATE
                              BCAL_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tpl"
-                             BCAL_TEST_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/templates")
+                             BCAL_TEST_TPL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/templates"
+                             BCAL_TEST_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/tests/config/bcal.yaml")
   add_test(NAME unit COMMAND bcal-tests)
   set(RUNNER ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_expect.cmake)
   # Arguments separated by "|"; exit code and a regex on the output are checked.
@@ -92,6 +95,22 @@ if(BUILD_TESTING)
   bcal_expect_args(year_markdown "--year=2026|-C|${CFG}/bcal.yaml|${NATIVITY}" 0 "# 2026.+Pascha: 2026-04-12.+## April.+2026-04-12 \\| Sunday")
   bcal_expect_args(year_markdown_escaped "--year=2026|-C|${CFG}/bcal.yaml|${CMAKE_CURRENT_SOURCE_DIR}/tests/year/special.yml" 0
                    "Theophany\\\\_Feast.+has \\\\`tick\\\\` \\\\\\| pipe")
+  # Languages. 7 January 2026 is a Wednesday: with --old the Nativity fast ends on it.
+  # The configuration says en_US; --lang=<name> uses the file <name>.yaml in a lang_dir.
+  set(OLD "--year=2026|--old|-C|${CFG}/bcal.yaml")
+  bcal_expect_args(lang_english "${OLD}|${NATIVITY}" 0 "Pascha: 2026-04-12.+## January.+\\| Date \\| Weekday \\| Data \\|.+2026-01-07 \\| Wednesday")
+  bcal_expect_args(lang_german "${OLD}|--lang=de_DE|${NATIVITY}" 0 "Pascha: 2026-04-12.+## Januar.+\\| Datum \\| Wochentag \\| Daten \\|.+2026-01-07 \\| Mittwoch")
+  bcal_expect_args(lang_fallback "${OLD}|--lang=de_AT|${NATIVITY}" 0 "## J.+nner.+Mittwoch")   # months of de_AT, the rest of de_DE
+  bcal_expect_args(lang_any_name "--year=2026|--old|-C|${CFG}/custom.yaml|--lang=foo_BAR|${NATIVITY}" 0 "Paschax:.+## Janx.+Wex")
+  bcal_expect_args(lang_from_config "--year=2026|--old|-C|${CFG}/german.yaml|${NATIVITY}" 0 "## Januar.+Mittwoch")
+  bcal_expect_args(lang_option_beats_config "--year=2026|--old|-C|${CFG}/german.yaml|--lang=en_US|${NATIVITY}" 0 "## January.+Wednesday")
+  bcal_expect_args(lang_without_year "--lang=de_DE|${NATIVITY}" 3 "need --year")
+  bcal_expect_args(lang_unknown "${OLD}|--lang=fr_FR|${NATIVITY}" 2 "cannot find the language file fr_FR.yaml in the lang_dir of ")
+  bcal_expect_args(lang_not_set "--year=2026|--old|-C|${CFG}/no-language.yaml|${NATIVITY}" 1 "no language: set language: in the configuration or use --lang")
+  bcal_expect_args(lang_dirs_missing "--year=2026|--old|-C|${CFG}/no-lang.yaml|${NATIVITY}" 2 "cannot find the language file en_US.yaml.+it lists no directory")
+  # en_US.yaml falls back to de_XX which falls back to en_US: read only once, with a warning
+  bcal_expect_args(lang_circular_fallback "--year=2026|--old|-C|${CFG}/circular.yaml|${NATIVITY}" 0 "## January.+already read")
+  bcal_expect_args(lang_file_invalid "--year=2026|--old|-C|${CFG}/bad-lang.yaml|${NATIVITY}" 1 "en_US.yaml:1: months must be a list of 12 names")
   # Without -C and bcal.yaml the program uses the installed config.yaml.
   add_test(NAME default_config
            COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:byzantine-cal> -DCONFIG=${BCAL_CONFIG_FILE}

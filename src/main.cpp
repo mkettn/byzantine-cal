@@ -13,6 +13,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include "byzantine_cal_config.h"
+#include "language.h"
 #include "calendar_loader.h"
 #include "pascha.h"
 #include "template_backend.h"
@@ -29,7 +30,8 @@ Dates are written DD.MM (e.g. 25.12), ranges as DD.MM..DD.MM,
 and Pascha-relative days as p, p+39, p-7w, p-7w<wed.
 
 Usage:
-  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]]
+  byzantine-cal [(-v | -q)] [--year=<year> [--old] [--output=<file>] [-C <file>]
+                [--lang=<language>]]
                 <yaml_file>
   byzantine-cal (-h | --help)
   byzantine-cal --version
@@ -46,7 +48,12 @@ Options:
   -o <file>, --output=<file>
                 Write the result to this file instead of stdout.
                 Needs --year.
-  -C <file>     Configuration file (it names the template directories).
+  -l <language>, --lang=<language>
+                Language of month and weekday names: the name of a language file
+                in a lang_dir of the configuration, e.g. de_DE. Overrides the
+                language option of the configuration. Needs --year.
+  -C <file>     Configuration file (it names the template and language
+                directories).
                 Default: bcal.yaml in the current directory, otherwise the
                 installed config.yaml. Needs --year.
   -h --help     Show this help.
@@ -84,9 +91,10 @@ int main(int argc, char** argv) {
   const bool generate = static_cast<bool>(args["--year"]);
   if (generate ? !parse_int(args["--year"].asString(), year) ||
                      year < bcal::kMinYear || year > bcal::kMaxYear
-               : args["--old"].asBool() || args["--output"] || args["-C"]) {
+               : args["--old"].asBool() || args["--output"] || args["-C"] ||
+                     args["--lang"]) {
     std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old, --output and -C need --year\n");
+                                  : "--old, --output, --lang and -C need --year\n");
     return 3;
   }
   const int offset_days =
@@ -125,8 +133,16 @@ int main(int argc, char** argv) {
         args["-C"] ? std::optional<std::string>(args["-C"].asString()) : std::nullopt,
         BCAL_CONFIG_FILE));
     spdlog::debug("configuration {}", config.file().string());
-    text = bcal::MarkdownBackend(config.find_template(bcal::MarkdownBackend::kTemplateFile))
-               .render(bcal::load_year_calendar(root, year, offset_days));
+    const auto template_path = config.find_template(bcal::MarkdownBackend::kTemplateFile);
+    const auto name = args["--lang"] ? std::optional<std::string>(args["--lang"].asString())
+                                     : config.language();
+    if (!name)
+      throw bcal::ConfigError(config.file().string() + ": no language: set language: in the configuration or use --lang");
+    spdlog::debug("language {}", *name);
+    const auto find = [&](const std::string& l) { return config.find_language_file(l); };
+    const bcal::Language language(find(*name), find);
+    text = bcal::MarkdownBackend(template_path)
+               .render(bcal::load_year_calendar(root, year, offset_days), language);
   } catch (const bcal::ConfigFileError& e) {
     spdlog::error("{}", e.what());
     return 2;

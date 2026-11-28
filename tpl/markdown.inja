@@ -1,16 +1,16 @@
 # {{ year }}
 
-Pascha: {{ pascha }}
+{{ escape_markdown(ui.pascha) }}: {{ pascha }}
 {% for month in months %}
 {% if month.rule_count > 0 %}
 
-## {{ month.name }}
+## {{ escape_markdown(month.name) }}
 
-| Date | Weekday | Data |
+| {{ escape_markdown(ui.date) }} | {{ escape_markdown(ui.weekday) }} | {{ escape_markdown(ui.data) }} |
 |------|---------|------|
 {% for day in month.days %}
 {% if day.has_rule %}
-| {{ day.date }} | {{ day.weekday_name }} | {{ escape_markdown(day.data) }} |
+| {{ day.date }} | {{ escape_markdown(day.weekday_name) }} | {{ escape_markdown(day.data) }} |
 {% endif %}
 {% endfor %}
 {% endif %}

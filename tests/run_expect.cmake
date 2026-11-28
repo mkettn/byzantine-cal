@@ -4,6 +4,7 @@
 if(DEFINED OUT_FILE)
   file(REMOVE ${OUT_FILE})
 endif()
+
 if(DEFINED ARGS)
   string(REPLACE "|" ";" ARGS "${ARGS}")
 endif()

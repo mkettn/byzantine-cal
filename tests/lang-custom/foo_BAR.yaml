@@ -1,0 +1,3 @@
+months: [Janx, Febx, Marx, Aprx, Maix, Junx, Julx, Augx, Sepx, Octx, Novx, Decx]
+weekdays: [Mox, Tux, Wex, Thx, Frx, Sax, Sux]
+ui: {date: Datex, weekday: Dayx, data: Datax, pascha: Paschax}

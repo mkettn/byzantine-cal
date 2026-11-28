@@ -1,6 +1,13 @@
 # byzantine-cal configuration.
 #
-# template_dir: directories to look for templates, in this order. Absolute
-# names or names relative to the directory of this file.
+# template_dir: directories to look for templates, in this order.
+# lang_dir:     directories to look for language files, in this order.
+# language:     the language to use: the language file <language>.yaml in a
+#               lang_dir (en_US, de_DE and de_AT are installed). --lang overrides it.
+#
+# Names are absolute or relative to the directory of this file.
 template_dir:
   - tpl
+lang_dir:
+  - lang
+language: en_US

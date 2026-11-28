@@ -1,0 +1,9 @@
+# A language file may leave out any key and name a fallback language (the name of
+# another language file), which is read first; the keys of the file replace its keys.
+months: [January, February, March, April, May, June, July, August, September, October, November, December]
+weekdays: [Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday]
+ui:                  # texts of the templates
+  date: Date
+  weekday: Weekday
+  data: Data
+  pascha: Pascha
