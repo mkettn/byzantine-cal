@@ -574,6 +574,8 @@ int main() {
     CHECK(bad("b7.md", "---\nname: A\nfeast_days:\n  - \"31.04\"\n---\n", "b7.md:4: invalid date"));
     CHECK(bad("b8.md", "---\nname: A\nfeast_days:\n  - \"01.01\": \"\"\n---\n", "b8.md:4: the title"));
     CHECK(bad("b9.md", "---\nname: A\nfeast_days:\n  - [1]\n---\n", "b9.md:4: a feast day must be"));
+    CHECK(bad("b14.md", "---\nname: A\nlang:\nfeast_days: [\"01.01\"]\n---\n", "b14.md:3: lang must be"));
+    CHECK(bcal::load_saint(sb.write("l.md", "---\nname: A\nlang: de_DE\nfeast_days: [\"01.01\"]\n---\n")).lang == "de_DE" && s.lang.empty());
     CHECK(bad("b10.md", "---\n- a\n---\n", "must be a map"));
     CHECK(bad("b11.md", "---\nname: A\nfeast_days:\n  - \"01.01\":\n---\n", "b11.md:4: the title"));
     CHECK(bad("b12.md", "---\nname:\nfeast_days: [\"01.01\"]\n---\n", "b12.md:2: name must be"));
@@ -595,6 +597,18 @@ int main() {
     CHECK(saints.size() == 3 && saints[0].name == "Z" && saints[1].name == "A" && saints[2].name == "B");
     CHECK(bcal::load_saints(sb.dir).empty());   // no .md file
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saints(sb.dir / "nope"); }));
+    sb.write("saints/de.md", "---\nname: D\nlang: de_DE\nfeast_days: [\"04.01\"]\n---\n");
+    sb.write("saints/en.md", "---\nname: E\nlang: en_US\nfeast_days: [\"05.01\"]\n---\n");
+    auto names = [&](const std::optional<std::string>& l) {
+      std::string out;
+      for (const auto& s : bcal::load_saints(sb.dir / "saints", l)) out += s.name + s.lang + ";";
+      return out;
+    };
+    CHECK(names(std::nullopt) == "Z;A;B;Dde_DE;Een_US;");
+    CHECK(names("de_DE") == "Z;A;B;Dde_DE;" && names("en_US") == "Z;A;B;Een_US;" && names("de_AT") == "Z;A;B;");
+    sb.write("saints/bad.md", "---\nname: X\nlang: fr_FR\nfeast_days: []\n---\n");
+    CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints", "de_DE"); }));   // invalid although ignored
+    std::filesystem::remove(sb.dir / "saints/bad.md");
     std::filesystem::remove(sb.dir / "saints/loop.md");
     sb.write("saints/c.md", "broken");
     CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints"); }));

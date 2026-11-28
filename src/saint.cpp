@@ -82,6 +82,13 @@ Saint load_saint(const fs::path& file) {
     fail(file, key_line(root, "name"), "name must be non-empty text");
   saint.name = name.Scalar();
 
+  const auto lang = root["lang"];
+  if (lang) {
+    if (!lang.IsScalar() || lang.Scalar().empty())
+      fail(file, key_line(root, "lang"), "lang must be non-empty text");
+    saint.lang = lang.Scalar();
+  }
+
   const auto days = root["feast_days"];
   if (!days) fail(file, 2, "feast_days is missing");
   if (!days.IsSequence() || days.size() == 0)
@@ -109,7 +116,7 @@ Saint load_saint(const fs::path& file) {
   return saint;
 }
 
-std::vector<Saint> load_saints(const fs::path& dir) {
+std::vector<Saint> load_saints(const fs::path& dir, const std::optional<std::string>& language) {
   std::error_code ec;
   if (!fs::is_directory(dir, ec)) throw ConfigFileError("cannot read saints directory " + dir.string());
   std::vector<fs::path> files;
@@ -118,7 +125,10 @@ std::vector<Saint> load_saints(const fs::path& dir) {
   if (ec) throw ConfigFileError("cannot read saints directory " + dir.string());
   std::sort(files.begin(), files.end());
   std::vector<Saint> saints;
-  for (const auto& file : files) saints.push_back(load_saint(file));
+  for (const auto& file : files) {
+    auto saint = load_saint(file);  // also a file of another language has to be valid
+    if (!language || saint.lang.empty() || saint.lang == *language) saints.push_back(std::move(saint));
+  }
   return saints;
 }
 
