@@ -65,8 +65,8 @@ A calendar file is a YAML list with a single document. Every item is `date: valu
   The later entry replaces the earlier one for a day, in the order of the file.
 - **An empty file is an error**, an empty list (`[]`) is valid.
 
-`byzantine-cal calendar.yml` checks a file. Problems are reported with the line they are on, for
-example an impossible date (`31.04`), an unknown rule or weekday, or a range without rules.
+`byzantine-cal calendar.yml` checks a file by loading it (as the year 2000). The first problem is
+reported with the line it is on, for example an impossible date (`31.04`), an unknown rule or weekday, or a range without rules.
 
 ## Generating a year
 
@@ -126,7 +126,8 @@ YAML.
   throws `std::out_of_range` for a date that is not in the year.
 
 `parse_day()` (`src/day.h`) turns the text of a date into a `Day`, or returns an error message.
-`validate()` (`src/validator.h`) checks a parsed calendar file and returns the problems with their
-lines, and `load_year_calendar()` (`src/calendar_loader.h`) builds a calendar from a calendar file.
-It throws `std::invalid_argument` if the file is invalid or the year is out of range, and the data of
-a day is the YAML of its value on one line.
+`load_year_calendar()` (`src/calendar_loader.h`) builds a calendar from a parsed calendar file, and
+`load_year_calendar_file()` reads the file first. The loader is the only check: it throws
+`std::invalid_argument` for the first problem, with its line, or if the year is out of range. The
+data of a day is the YAML of its value on one line. `load_year_calendar_file()` throws
+`ConfigFileError` if the file cannot be read and `ConfigError` if its YAML is invalid.

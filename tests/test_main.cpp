@@ -14,7 +14,6 @@
 
 #include "byzantine_cal_config.h"
 #include "calendar_loader.h"
-#include "validator.h"
 #include "year_calendar.h"
 
 static int failures = 0;
@@ -27,7 +26,14 @@ static int failures = 0;
   } while (0)
 
 static bool day_ok(const std::string& s) { return bcal::parse_day(s).day.has_value(); }
-static bool yaml_ok(const std::string& s) { return bcal::validate(YAML::Load(s)).ok(); }
+static bool yaml_ok(const std::string& s) {
+  try {
+    bcal::load_year_calendar(YAML::Load(s), 2000);
+    return true;
+  } catch (const std::invalid_argument&) {
+    return false;
+  }
+}
 
 using namespace std::chrono;
 
@@ -97,6 +103,15 @@ int main() {
   CHECK(yaml_ok("- \"15.12..05.01\":\n    wed: no_oil\n"));  // wraps year end
 
   CHECK(!yaml_ok("foo: bar\n"));
+  {
+    std::string msg;
+    try { bcal::load_year_calendar(YAML::Load("- \"01.01\": A\n- \"31.04\": B\n"), 2026, 0, "cal.yml"); }
+    catch (const std::invalid_argument& e) { msg = e.what(); }
+    CHECK(msg.find("cal.yml:2: invalid date") == 0);
+    try { bcal::load_year_calendar(YAML::Load("- \"31.04\": B\n"), 2026); }
+    catch (const std::invalid_argument& e) { msg = e.what(); }
+    CHECK(msg.find("line 1: invalid date") == 0);
+  }
   CHECK(!yaml_ok("- \"31.04\": Bad\n"));
   CHECK(!yaml_ok("- \"01.01..32.01\":\n    mon: no_oil\n"));
   CHECK(!yaml_ok("- \"01.01..02.01..03.01\":\n    mon: no_oil\n"));
