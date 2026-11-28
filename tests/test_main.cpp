@@ -303,6 +303,12 @@ int main() {
     CHECK(bcal::fold_ics("a\nb\n") == "a\r\nb\r\n" && bcal::fold_ics("") == "");
     const auto folded = bcal::fold_ics(std::string(80, 'x') + "\n");
     CHECK(folded == std::string(75, 'x') + "\r\n " + std::string(5, 'x') + "\r\n");
+    CHECK(bcal::fold_ics(std::string(75, 'x') + "\n") == std::string(75, 'x') + "\r\n");   // fits
+    CHECK(bcal::fold_ics(std::string(76, 'x')) == std::string(75, 'x') + "\r\n x\r\n");
+    CHECK(bcal::fold_ics(std::string(75 + 74 + 74, 'x') + "\n") ==
+          std::string(75, 'x') + "\r\n " + std::string(74, 'x') + "\r\n " + std::string(74, 'x') + "\r\n");
+    CHECK(bcal::fold_ics("a\r\nb\r\n") == "a\r\nb\r\n");
+    CHECK(bcal::fold_ics(std::string(100, '\x80') + "\n").size() > 100);   // invalid UTF-8 ends
     // 74 octets, then a 2-octet character that would end at octet 76: it moves to the next line
     CHECK(bcal::fold_ics(std::string(74, 'x') + "\xC3\xA4\n") == std::string(74, 'x') + "\r\n \xC3\xA4\r\n");
     bcal::YearCalendar c(2026, 13);

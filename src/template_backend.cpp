@@ -70,16 +70,20 @@ std::string fold_ics(const std::string& text) {
     size_t end = text.find('\n', pos);
     if (end == std::string::npos) end = text.size();
     size_t start = pos;
+    const size_t next = end + 1;
+    if (end > start && text[end - 1] == '\r') --end;  // a template saved with CRLF
     size_t limit = kMax;
     while (end - start > limit) {
       size_t cut = start + limit;
-      while (cut > start && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) --cut;  // not inside a UTF-8 character
+      size_t back = cut;  // do not cut inside a UTF-8 character
+      while (back > start + 1 && (static_cast<unsigned char>(text[back]) & 0xC0) == 0x80) --back;
+      if (back > start + 1) cut = back;  // invalid UTF-8: cut anyway
       out.append(text, start, cut - start).append("\r\n ");
       start = cut;
       limit = kMax - 1;  // the leading space counts
     }
     out.append(text, start, end - start).append("\r\n");
-    pos = end + 1;
+    pos = next;
   }
   return out;
 }

@@ -1,7 +1,7 @@
 # byzantine-cal
 
 Orthodox fasting calendar tool. It reads a calendar file with dates and date ranges, checks it, and
-generates the calendar of a year from it as Markdown, with a template.
+generates the calendar of a year from it as Markdown or iCalendar, with a template.
 
 ## Build
 

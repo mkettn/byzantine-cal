@@ -18,9 +18,11 @@ day with an entry.
 ## The iCalendar template
 
 `tpl/ics.inja` makes an iCalendar file (RFC 5545) that calendar apps can import: one all-day event
-for every day with an entry, whose summary is the `data` of the entry. The events have a stable
-`UID` (the date), so importing the file again does not duplicate them. The backend turns the line
-ends into CRLF and folds lines longer than 75 octets, so the template does neither.
+for every day with an entry, whose summary is the `data` of the entry. An event has the `UID`
+`<date>@byzantine-cal` and a `DTSTAMP` of that date at 00:00 UTC, so importing the file again does
+not duplicate the events. A year without entries gives a calendar without events. The backend turns
+the line ends into CRLF and folds lines longer than 75 octets, so the template does neither;
+`render_template()` alone does not.
 
 ## Data
 
