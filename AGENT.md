@@ -29,3 +29,4 @@ with templates.
   ready if it is fine.
 - Don't stack PRs: a PR is based on `master`. Wait until the previous one is merged before starting the
   next, and put work that depends on an open PR into that PR.
+- Only create PRs that were asked for. Other changes go into the PR they belong to.
