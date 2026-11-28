@@ -27,3 +27,5 @@ with templates.
 - Keep PRs short: at most 300 new lines is the goal, more is ok. At about 500, consider two PRs.
 - When a PR is implemented: start a review agent, fix the findings, do another round, and mark the PR
   ready if it is fine.
+- Don't stack PRs: a PR is based on `master`. Wait until the previous one is merged before starting the
+  next, and put work that depends on an open PR into that PR.
