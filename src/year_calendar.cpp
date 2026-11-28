@@ -30,7 +30,7 @@ YearCalendar::YearCalendar(int year, int offset_days)
   const sys_days first{std::chrono::year{year} / January / 1};
   const sys_days last{std::chrono::year{year} / December / 31};
   for (sys_days d = first; d <= last; d += days{1})
-    days_.push_back({year_month_day{d}, std::nullopt});
+    days_.push_back({year_month_day{d}, std::nullopt, {}});
 }
 
 std::optional<sys_days> YearCalendar::resolve(const Day& d,
@@ -52,14 +52,14 @@ std::optional<sys_days> YearCalendar::resolve(const Day& d,
 }
 
 void YearCalendar::apply(sys_days from, sys_days to, const Weekdays& weekdays,
-                         const std::string& data) {
+                         const std::function<void(CalendarDay&)>& set) {
   const sys_days first{std::chrono::year{year_} / January / 1};
   const sys_days last{std::chrono::year{year_} / December / 31};
   // Only the part inside this year matters.
   for (sys_days d = std::max(from, first); d <= std::min(to, last);
        d += days{1})
     if (weekdays.count(weekday_index(d)))
-      days_[static_cast<std::size_t>((d - first).count())].data = data;
+      set(days_[static_cast<std::size_t>((d - first).count())]);
 }
 
 void YearCalendar::add_day(const Day& day, std::string data) {
@@ -68,11 +68,26 @@ void YearCalendar::add_day(const Day& day, std::string data) {
 
 void YearCalendar::add_range(const Day& start, const Day& end,
                              const Weekdays& weekdays, std::string data) {
+  place(start, end, weekdays, [&](CalendarDay& day) { day.data = data; });
+}
+
+const Saint& YearCalendar::add_saint(Saint saint) {
+  const Saint& kept = saints_.emplace_back(std::move(saint));
+  for (const Feast& feast : kept.feasts)
+    place(feast.day, feast.day, all_weekdays(), [&](CalendarDay& day) {
+      if (std::find(day.saints.begin(), day.saints.end(), &kept) == day.saints.end())
+        day.saints.push_back(&kept);   // once, also with two feasts on the same day
+    });
+  return kept;
+}
+
+void YearCalendar::place(const Day& start, const Day& end, const Weekdays& weekdays,
+                         const std::function<void(CalendarDay&)>& set) {
   if (!is_solar(start) || !is_solar(end)) {
     // Pascha relative (or mixed): relative to this year.
     auto s = resolve(start, year_);
     auto e = resolve(end, year_);
-    if (s && e) apply(*s, *e, weekdays, data);
+    if (s && e) apply(*s, *e, weekdays, set);
     return;
   }
   // A range of fixed dates whose end is before its start crosses New Year.
@@ -82,7 +97,7 @@ void YearCalendar::add_range(const Day& start, const Day& end,
   for (int y = year_ - 1; y <= year_ + 1; ++y) {
     auto s = resolve(start, y);
     auto e = resolve(end, crosses ? y + 1 : y);
-    if (s && e) apply(*s, *e, weekdays, data);
+    if (s && e) apply(*s, *e, weekdays, set);
   }
 }
 

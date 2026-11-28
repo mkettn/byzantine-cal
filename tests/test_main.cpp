@@ -15,6 +15,7 @@
 #include "byzantine_cal_config.h"
 #include "calendar_loader.h"
 #include "year_calendar.h"
+#include "saint.h"
 
 static int failures = 0;
 #define CHECK(c)                                              \
@@ -545,6 +546,125 @@ int main() {
     CHECK(md.find("\\# P: 2026-04-12") != std::string::npos && md.find("| 2026-01-07 | W\\|3 |") != std::string::npos);
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language(sb.dir / "nope.yaml", no_fallback); }));
     CHECK(throws<bcal::ConfigFileError>([&] { bcal::Language(sb.dir, no_fallback); }));   // a directory
+  }
+
+  {
+    Sandbox sb;
+    const auto file = sb.write("n.md",
+        "---\nname: Nicholas\nfeast_days:\n  - \"06.12\": feast day\n    \"p+7\": translation\n  - \"09.05\"\n---\n\n"
+        "Bishop of *Myra*.\n\nMore.\n\n");
+    const auto s = bcal::load_saint(file);
+    CHECK(s.name == "Nicholas" && s.description == "Bishop of *Myra*.\n\nMore." && s.file == file);
+    CHECK(s.feasts.size() == 3 && s.feasts[0].title == "feast day" && s.feasts[0].day.month == 12);
+    CHECK(s.feasts[1].title == "translation" && s.feasts[1].day.kind == bcal::Day::Kind::Pascha);
+    CHECK(s.feasts[2].title.empty() && s.feasts[2].day.day == 9);
+    CHECK(bcal::load_saint(sb.write("e.md", "---\r\nname: A\r\nfeast_days: [\"01.01\"]\r\n---\r\n")).description.empty());
+    auto bad = [&](const char* name, const std::string& text, const char* msg) {
+      try { bcal::load_saint(sb.write(name, text)); } catch (const std::invalid_argument& e) {
+        return std::string(e.what()).find(msg) != std::string::npos;
+      }
+      return false;
+    };
+    CHECK(bad("b1.md", "no header\n", "b1.md:1: the file must start"));
+    CHECK(bad("b2.md", "---\nname: A\n", "b2.md:1: the header is not closed"));
+    CHECK(bad("b3.md", "---\nname: [\n---\n", "YAML syntax error"));
+    CHECK(bad("b4.md", "---\nfeast_days: [\"01.01\"]\n---\n", "name must be non-empty"));
+    CHECK(bad("b5.md", "---\nname: A\n---\n", "feast_days is missing"));
+    CHECK(bad("b6.md", "---\nname: A\nfeast_days: []\n---\n", "b6.md:3: feast_days must be a list"));
+    CHECK(bad("b7.md", "---\nname: A\nfeast_days:\n  - \"31.04\"\n---\n", "b7.md:4: invalid date"));
+    CHECK(bad("b8.md", "---\nname: A\nfeast_days:\n  - \"01.01\": \"\"\n---\n", "b8.md:4: the title"));
+    CHECK(bad("b9.md", "---\nname: A\nfeast_days:\n  - [1]\n---\n", "b9.md:4: a feast day must be"));
+    CHECK(bad("b14.md", "---\nname: A\nlang:\nfeast_days: [\"01.01\"]\n---\n", "b14.md:3: lang must be"));
+    CHECK(bcal::load_saint(sb.write("l.md", "---\nname: A\nlang: de_DE\nfeast_days: [\"01.01\"]\n---\n")).lang == "de_DE");
+    CHECK(bcal::load_saint(sb.write("nl.md", "---\nname: A\nfeast_days: [\"01.01\"]\n---\n")).lang.empty());
+    CHECK(bad("b15.md", "---\nname: A\nfeast_days: [\"01.01\"]\nlang: [de]\n---\n", "b15.md:4: lang must be"));
+    CHECK(bad("b10.md", "---\n- a\n---\n", "must be a map"));
+    CHECK(bad("b11.md", "---\nname: A\nfeast_days:\n  - \"01.01\":\n---\n", "b11.md:4: the title"));
+    CHECK(bad("b12.md", "---\nname:\nfeast_days: [\"01.01\"]\n---\n", "b12.md:2: name must be"));
+    CHECK(bad("b13.md", "---\r\nname: A\r\nfeast_days: [\"31.04\"]\r\n---\r\n", "b13.md:3: invalid date"));
+    CHECK(bcal::load_saint(sb.write("bom.md", "\xEF\xBB\xBF---\nname: A\nfeast_days: [05.10]\n---\nx\n---\ny\n")).description == "x\n---\ny");
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saint(sb.dir / "nope.md"); }));
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saint(sb.dir); }));
+  }
+
+  {
+    Sandbox sb;
+    sb.write("saints/b.md", "---\nname: B\nfeast_days: [\"02.01\"]\n---\n");
+    sb.write("saints/a.md", "---\nname: A\nfeast_days: [\"01.01\"]\n---\n");
+    sb.write("saints/notes.txt", "ignored");
+    sb.write("saints/Z.md", "---\nname: Z\nfeast_days: [\"03.01\"]\n---\n");
+    sb.write("saints/dir.md/x", "");
+    std::filesystem::create_symlink("loop.md", sb.dir / "saints/loop.md");
+    const auto saints = bcal::load_saints(sb.dir / "saints");
+    CHECK(saints.size() == 3 && saints[0].name == "Z" && saints[1].name == "A" && saints[2].name == "B");
+    CHECK(bcal::load_saints(sb.dir).empty());   // no .md file
+    CHECK(throws<bcal::ConfigFileError>([&] { bcal::load_saints(sb.dir / "nope"); }));
+    sb.write("saints/de.md", "---\nname: D\nlang: de_DE\nfeast_days: [\"04.01\"]\n---\n");
+    sb.write("saints/en.md", "---\nname: E\nlang: en_US\nfeast_days: [\"05.01\"]\n---\n");
+    auto names = [&](const std::optional<std::string>& l) {
+      std::string out;
+      for (const auto& s : bcal::load_saints(sb.dir / "saints", l)) out += s.name + s.lang + ";";
+      return out;
+    };
+    CHECK(names(std::nullopt) == "Z;A;B;Dde_DE;Een_US;");
+    CHECK(names("de_DE") == "Z;A;B;Dde_DE;" && names("en_US") == "Z;A;B;Een_US;" && names("de_AT") == "Z;A;B;");
+    sb.write("saints/bad.md", "---\nname: X\nlang: fr_FR\nfeast_days: []\n---\n");
+    CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints", "de_DE"); }));   // invalid although ignored
+    std::filesystem::remove(sb.dir / "saints/bad.md");
+    std::filesystem::remove(sb.dir / "saints/loop.md");
+    sb.write("saints/c.md", "broken");
+    CHECK(throws<std::invalid_argument>([&] { bcal::load_saints(sb.dir / "saints"); }));
+  }
+
+  {
+    auto saint = [](const char* name, std::vector<bcal::Feast> feasts) {
+      bcal::Saint s;
+      s.name = name;
+      s.feasts = std::move(feasts);
+      return s;
+    };
+    bcal::YearCalendar c(2026, 13);
+    const bcal::Saint& n = c.add_saint(saint("Nicholas", {{D("25.12"), "feast"}, {D("p+7"), "relics"}, {D("30.02"), "never"}}));
+    c.add_saint(saint("Ann", {{D("25.12"), ""}, {D("01.01"), ""}}));
+    CHECK(n.name == "Nicholas" && n.feasts.size() == 3);
+    CHECK(c.at(1, 7).saints.size() == 2 && c.at(1, 7).saints[0] == &n);      // 25.12 + 13 days, in the order added
+    CHECK(c.at(1, 7).saints[1]->name == "Ann" && c.at(1, 14).saints[0]->name == "Ann");  // 01.01 + 13
+    CHECK(c.at(4, 19).saints.size() == 1 && c.at(4, 19).saints[0] == &n);        // Pascha 12.04 + 7
+    CHECK(c.at(1, 8).saints.empty() && !c.at(1, 7).has_rule());                                      // separate from the rules
+    c.add_day(D("25.12"), "x");
+    CHECK(c.at(1, 7).has_rule() && c.at(1, 7).saints.size() == 2);
+    int total = 0;
+    for (const auto& d : c) total += static_cast<int>(d.saints.size());
+    CHECK(total == 4);                                                                               // 30.02 never exists
+    // the saints survive a move, the days still point to them
+    bcal::YearCalendar moved(std::move(c));
+    CHECK(moved.at(1, 7).saints[0]->name == "Nicholas" && moved.at(1, 7).saints[0]->feasts.size() == 3);
+    bcal::YearCalendar twice(2026);
+    twice.add_saint(saint("Twice", {{D("01.03"), "a"}, {D("01.03"), "b"}}));
+    CHECK(twice.at(3, 1).saints.size() == 1);   // listed once
+    bcal::YearCalendar leap(2028);                       // 29.02 exists
+    leap.add_saint(saint("Leap", {{D("29.02"), ""}, {D("p+3<fri"), ""}}));
+    CHECK(leap.at(2, 29).saints.size() == 1 && leap.at(2, 29).saints[0]->name == "Leap");
+    bcal::YearCalendar leap13(2028, 13);
+    leap13.add_saint(saint("Leap", {{D("29.02"), ""}}));
+    CHECK(leap13.at(3, 13).saints.size() == 1 && leap13.at(2, 29).saints.empty());
+    bcal::YearCalendar plain(2027);
+    plain.add_saint(saint("Leap", {{D("29.02"), ""}}));
+    plain.add_saint(saint("None", {}));
+    int none = 0;
+    for (const auto& d : plain) none += static_cast<int>(d.saints.size());
+    CHECK(none == 0);
+    // move assignment keeps the pointers valid
+    bcal::YearCalendar target(2026), source(2027);
+    source.add_saint(saint("Moved", {{D("01.01"), ""}}));
+    target = std::move(source);
+    CHECK(target.year() == 2027 && target.at(1, 1).saints[0]->name == "Moved");
+    // a feast of the previous year's date shifted into this year
+    bcal::YearCalendar y(2027, 13);
+    y.add_saint(saint("Dec", {{D("25.12"), ""}}));
+    y.add_saint(saint("Prev", {{D("31.12"), ""}}));
+    CHECK(y.at(1, 7).saints.size() == 1 && y.at(1, 13).saints.size() == 1);
+    CHECK(y.at(12, 25).saints.empty() && y.at(12, 31).saints.empty());   // 25.12 and 31.12 of 2027 are in 2028
   }
 
   // --- invalid input / parameters
