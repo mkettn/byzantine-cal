@@ -55,6 +55,7 @@ byzantine-cal --year=2026 calendar.yml > calendar.md
 byzantine-cal --year=2026 --old calendar.yml                # old calendar: 25.12. -> 7 January
 byzantine-cal --year=2026 --output=2026.md calendar.yml
 byzantine-cal --year=2026 -C my-config.yaml calendar.yml    # another configuration
+byzantine-cal --year=2026 --format=html calendar.yml > 2026.html
 byzantine-cal --year=2026 --format=ics calendar.yml > 2026.ics  # iCalendar for a calendar app
 byzantine-cal --year=2026 --lang=de_DE calendar.yml         # German month and weekday names
 ```
@@ -62,7 +63,7 @@ byzantine-cal --year=2026 --lang=de_DE calendar.yml         # German month and w
 | Option | |
 |---|---|
 | `-h`, `--help`, `--version` | Show the help, or the version. |
-| `-v`, `-q` | Show debug output, or only errors. |
+| `-v`, `-q` | Show debug output, or only errors (not both). |
 | `-y`, `--year=<year>` | Generate the calendar of this year. |
 | `--old` | The calendar is in the old (Julian) calendar: shift the fixed dates by 13 days. Needs `--year`. |
 | `-o`, `--output=<file>` | Write the result to this file instead of stdout. Needs `--year`. |

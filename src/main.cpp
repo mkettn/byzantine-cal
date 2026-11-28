@@ -79,6 +79,10 @@ int main(int argc, char** argv) {
     return 3;
   }
 
+  if (args["--verbose"].asBool() && args["--quiet"].asBool()) {
+    spdlog::error("-v and -q cannot be used together");
+    return 3;
+  }
   if (args["--verbose"].asBool())
     spdlog::set_level(spdlog::level::debug);
   else if (args["--quiet"].asBool())
