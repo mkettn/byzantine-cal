@@ -133,7 +133,8 @@ std::vector<Entry> load_yaml(const fs::path& file) {
     fail(file, e.mark.is_null() ? 1 : e.mark.line + 1, "YAML syntax error: " + e.msg);
   }
   std::vector<Entry> entries;
-  for (const auto& document : documents) entries.push_back(parse_entry(file, document, 1));
+  for (const auto& document : documents)
+    if (!document.IsNull()) entries.push_back(parse_entry(file, document, 1));  // empty: a trailing ---
   return entries;
 }
 

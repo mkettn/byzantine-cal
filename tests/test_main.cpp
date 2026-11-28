@@ -592,6 +592,10 @@ int main() {
       CHECK(many.size() == 2 && many[0].name == "A" && many[0].type == "event" && many[1].name == "B");
       CHECK(many[0].description.empty() && many[1].lang == "de_DE" && many[1].days[0].title == "x");
       CHECK(bcal::load_entry_file(sb.write("none.yaml", "")).empty());
+      CHECK(bcal::load_entry_file(sb.write("trail.yaml", "name: A\ndays: [\"01.01\"]\n---\n")).size() == 1);
+      CHECK(bcal::load_entry_file(sb.write("gap.yaml", "name: A\ndays: [\"01.01\"]\n---\n---\n# nothing\n---\nname: B\ndays: [\"02.01\"]\n")).size() == 2);
+      const auto crlf = bcal::load_entry_file(sb.write("crlf.yaml", "\xEF\xBB\xBFname: A\r\ndays: [\"01.01\"]\r\n---\r\nname: B\r\ndays: [\"02.01\"]\r\n"));
+      CHECK(crlf.size() == 2 && crlf[0].name == "A" && crlf[1].name == "B");
     }
     CHECK(bad("y1.yaml", "name: A\ndays: [\"01.01\"]\n---\nname: B\ndays: [\"31.04\"]\n", "y1.yaml:5: invalid date"));
     CHECK(bad("y2.yaml", "name: A\ndays: [\"01.01\"]\n---\n- x\n", "y2.yaml:4: an entry must be a map"));
@@ -624,6 +628,10 @@ int main() {
     };
     CHECK(names(std::nullopt) == "Z;A;B;Dde_DE;Een_US;Y1;Y2;");
     CHECK(names("de_DE") == "Z;A;B;Dde_DE;Y1;Y2;" && names("en_US") == "Z;A;B;Een_US;Y1;Y2;" && names("de_AT") == "Z;A;B;Y1;Y2;");
+    sb.write("entries/mixed.yaml", "name: M1\nlang: de_DE\ndays: [\"08.01\"]\n---\nname: M2\nlang: en_US\ndays: [\"09.01\"]\n");
+    sb.write("entries/other.yml", "name: ignored\ndays: [\"31.04\"]\n");
+    CHECK(names("de_DE").find("M1de_DE;") != std::string::npos && names("de_DE").find("M2") == std::string::npos);
+    std::filesystem::remove(sb.dir / "entries/mixed.yaml");
     sb.write("entries/bad.md", "---\nname: X\nlang: fr_FR\ndays: []\n---\n");
     CHECK(throws<std::invalid_argument>([&] { bcal::load_entries(sb.dir / "entries", "de_DE"); }));   // invalid although ignored
     std::filesystem::remove(sb.dir / "entries/bad.md");

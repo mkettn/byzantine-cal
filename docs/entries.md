@@ -2,7 +2,8 @@
 
 An entry is something that is celebrated or remembered on one or more days of the year, for example
 a saint with a feast day or a historical event. Entries are read from the files of a directory: every
-file whose name ends in `.md` or `.yaml` (in lowercase) is read, in the byte order of the file names.
+file whose name ends in `.md` or `.yaml` (in lowercase, so not `.yml`) is read, in the byte order
+of the file names.
 
 ## Markdown files
 
@@ -26,7 +27,8 @@ Bishop of Myra in Lycia, ...
 ## YAML files
 
 A `.yaml` file has one entry for each YAML document in it, separated by `---`. The entries have the
-same fields as the header above and no description.
+same fields as the header above and no description. An empty document, for example after a last
+`---`, is skipped, and so is an empty file.
 
 ```
 name: Council of Nicaea
