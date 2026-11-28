@@ -8,14 +8,14 @@
 #include <vector>
 
 #include "day.h"
-#include "saint.h"
+#include "entry.h"
 
 namespace bcal {
 
 struct CalendarDay {
   std::chrono::year_month_day date;
   std::optional<std::string> data;
-  std::vector<const Saint*> saints;  // owned by the YearCalendar, in the order they were added
+  std::vector<const Entry*> entries;  // owned by the YearCalendar, in the order they were added
 
   bool has_rule() const { return data.has_value(); }
   std::chrono::weekday weekday() const {
@@ -29,7 +29,7 @@ class YearCalendar {
 
   explicit YearCalendar(int year, int offset_days = 0);
 
-  // The days point to the saints, so a copy would point into the original.
+  // The days point to the entries, so a copy would point into the original.
   YearCalendar(const YearCalendar&) = delete;
   YearCalendar& operator=(const YearCalendar&) = delete;
   YearCalendar(YearCalendar&&) = default;
@@ -46,8 +46,8 @@ class YearCalendar {
   void add_range(const Day& start, const Day& end, const Weekdays& weekdays,
                  std::string data);
 
-  // The calendar keeps the saint, and its feasts are added to the days like the dates of add_day().
-  const Saint& add_saint(Saint saint);
+  // The calendar keeps the entry, and it is added to its days like the dates of add_day().
+  const Entry& add_entry(Entry entry);
 
   const CalendarDay& at(std::chrono::year_month_day date) const;
   const CalendarDay& at(unsigned month, unsigned day) const;
@@ -67,7 +67,7 @@ class YearCalendar {
   int offset_days_;
   std::chrono::year_month_day pascha_;
   std::vector<CalendarDay> days_;
-  std::deque<Saint> saints_;  // a deque: the days point to its elements
+  std::deque<Entry> entries_;  // a deque: the days point to its elements
 };
 
 }  // namespace bcal
