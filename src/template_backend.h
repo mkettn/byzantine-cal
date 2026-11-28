@@ -22,6 +22,9 @@ class TemplateFileError : public TemplateError {
 
 std::string escape_markdown(const std::string& text);
 
+// Escapes & < > " ' and turns newlines into <br>.
+std::string escape_html(const std::string& text);
+
 // Escapes a TEXT value of iCalendar (RFC 5545): \ ; , and newlines.
 std::string escape_ics(const std::string& text);
 
@@ -49,6 +52,14 @@ class MarkdownBackend : public TemplateBackend {
   static constexpr const char* kTemplateFile = "markdown.inja";
 
   explicit MarkdownBackend(const std::filesystem::path& template_path)
+      : TemplateBackend(template_path) {}
+};
+
+class HtmlBackend : public TemplateBackend {
+ public:
+  static constexpr const char* kTemplateFile = "html.inja";
+
+  explicit HtmlBackend(const std::filesystem::path& template_path)
       : TemplateBackend(template_path) {}
 };
 

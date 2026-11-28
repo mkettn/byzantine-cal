@@ -48,6 +48,23 @@ std::string escape_markdown(const std::string& text) {
   return out;
 }
 
+std::string escape_html(const std::string& text) {
+  std::string out;
+  for (const char c : text) {
+    switch (c) {
+      case '\r': break;
+      case '\n': out += "<br>"; break;
+      case '&': out += "&amp;"; break;
+      case '<': out += "&lt;"; break;
+      case '>': out += "&gt;"; break;
+      case '"': out += "&quot;"; break;
+      case '\'': out += "&#39;"; break;
+      default: out += c;
+    }
+  }
+  return out;
+}
+
 std::string escape_ics(const std::string& text) {
   std::string out;
   for (const char c : text) {
@@ -121,6 +138,9 @@ std::string render_template(const YearCalendar& calendar, const Language& langua
     env.set_lstrip_blocks(true);
     env.add_callback("escape_markdown", 1, [](inja::Arguments& args) {
       return escape_markdown(args.at(0)->get<std::string>());
+    });
+    env.add_callback("escape_html", 1, [](inja::Arguments& args) {
+      return escape_html(args.at(0)->get<std::string>());
     });
     env.add_callback("escape_ics", 1, [](inja::Arguments& args) {
       return escape_ics(args.at(0)->get<std::string>());
