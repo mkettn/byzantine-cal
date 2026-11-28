@@ -78,10 +78,11 @@ int main(int argc, char** argv) {
     std::puts("byzantine-cal " BCAL_VERSION);
     return 0;
   } catch (const docopt::DocoptArgumentError& e) {
-    std::fprintf(stderr, "%s\n\n%s", e.what(), USAGE);
+    spdlog::error("{}", e.what());
+    std::fputs(USAGE, stderr);
     return 3;
   } catch (const docopt::DocoptLanguageError& e) {
-    std::fprintf(stderr, "%s\n", e.what());
+    spdlog::error("{}", e.what());
     return 3;
   }
 
@@ -96,8 +97,8 @@ int main(int argc, char** argv) {
                      year < bcal::kMinYear || year > bcal::kMaxYear
                : args["--old"].asBool() || args["--output"] || args["-C"] ||
                      args["--lang"] || args["--format"]) {
-    std::fprintf(stderr, generate ? "year must be a whole number in 1..9999\n"
-                                  : "--old, --output, --lang, --format and -C need --year\n");
+    spdlog::error(generate ? "year must be a whole number in 1..9999"
+                           : "--old, --output, --lang, --format and -C need --year");
     return 3;
   }
   const std::string format = args["--format"] ? args["--format"].asString() : "markdown";
