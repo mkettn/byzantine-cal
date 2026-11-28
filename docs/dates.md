@@ -111,4 +111,21 @@ for (const bcal::CalendarDay& each : cal) { /* 365 or 366 days, in order */ }
 
 All dates outside the class are Gregorian: `at()`, the returned days and the iteration. With an
 offset of 13, `at(12, 25)` returns the rule that was added for 12.12. The class knows nothing about
-YAML. `load_year_calendar()` (`src/calendar_loader.h`) builds a calendar from a calendar file.
+YAML.
+
+- **Weekdays** are numbers, 0 (Monday) to 6 (Sunday), in a `bcal::Weekdays` set. `all_weekdays()`
+  has all of them.
+- **`add_day()` and `add_range()`** ignore dates that do not exist or fall outside the year. The ends
+  of a range are included, a range of fixed dates whose end is before its start crosses New Year,
+  and a range with a bound that does not exist is ignored as a whole.
+- **Days** are `CalendarDay`s: the `date`, the `weekday()`, `has_rule()` and the `data` string of the
+  rule, which is empty without one. `size()` is 365 or 366, and `pascha()` is the Gregorian date of
+  Pascha, not shifted by the offset.
+- **Errors:** the constructor throws `std::invalid_argument` for a year outside 1..9999, and `at()`
+  throws `std::out_of_range` for a date that is not in the year.
+
+`parse_day()` (`src/day.h`) turns the text of a date into a `Day`, or returns an error message.
+`validate()` (`src/validator.h`) checks a parsed calendar file and returns the problems with their
+lines, and `load_year_calendar()` (`src/calendar_loader.h`) builds a calendar from a calendar file.
+It throws `std::invalid_argument` if the file is invalid or the year is out of range, and the data of
+a day is the YAML of its rule on one line.

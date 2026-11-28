@@ -49,7 +49,6 @@ ByzantineCalConfig::ByzantineCalConfig(const fs::path& file) : file_(file) {
   if (!root.IsMap())
     throw ConfigError(location(file, root) + "the configuration must be a map of options");
 
-  // A list of directories, absolute or relative to the directory of the file.
   auto dirs_of = [&](const YAML::Node& list, const char* option) {
     if (!list.IsSequence())
       throw ConfigError(location(file, list) + option + " must be a list of directories");

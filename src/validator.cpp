@@ -37,8 +37,6 @@ void check_rule(Report& r, const YAML::Node& at, const YAML::Node& v) {
                    "\" (use no_fast, no_meat, no_dairy, no_fish, no_oil)");
 }
 
-// A weekday rule is a rule name ("no_meat") or a map with a required `rule`
-// and arbitrary further fields ({rule: no_meat, note: ...}).
 void check_range_rule(Report& r, const YAML::Node& v) {
   if (v.IsMap()) {
     int rules = 0;

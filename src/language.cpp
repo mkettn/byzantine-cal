@@ -7,7 +7,6 @@ namespace bcal {
 
 namespace {
 
-// A list of exactly `count` names.
 std::vector<std::string> names_of(const std::filesystem::path& file, const YAML::Node& list,
                                   const char* what, std::size_t count) {
   if (!list.IsSequence() || list.size() != count)

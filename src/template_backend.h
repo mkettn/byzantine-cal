@@ -10,41 +10,21 @@
 
 namespace bcal {
 
-// The calendar as handed to templates:
-//   year, offset_days, pascha ("YYYY-MM-DD"),
-//   ui:     the texts of the language ({date: "Date", ...})
-//   days:   [{date ("YYYY-MM-DD"), year, month, day, weekday (1 = Monday ..
-//             7 = Sunday), weekday_name, has_rule, data}]
-//             (data is "" for days without a rule)
-//   months: [{number, name, rule_count, days: [...same as above...]}]
-// Month and weekday names are those of `language`.
 nlohmann::json calendar_to_json(const YearCalendar& calendar, const Language& language);
 
 class TemplateError : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
-// The template file of a backend cannot be read.
 class TemplateFileError : public TemplateError {
   using TemplateError::TemplateError;
 };
 
-// Escapes text for Markdown: every character with a meaning there
-// (\ ` * _ { } [ ] ( ) < > # + - . ! | ~ &) gets a backslash, so it is shown
-// literally, also in a table cell. Newlines become <br>.
 std::string escape_markdown(const std::string& text);
 
-// Renders an inja template with the data of calendar_to_json(). Besides the
-// inja built-ins, escape_markdown(text) is available. Blocks ({% ... %}) alone
-// on a line leave no empty line behind; line statements start with "%%" (inja's
-// default "##" is a Markdown heading). Throws TemplateError if the template is
-// invalid or cannot be rendered, for whatever reason.
 std::string render_template(const YearCalendar& calendar, const Language& language,
                             const std::string& template_text);
 
-// A backend turns a YearCalendar into text with an inja template that it reads
-// from the given file. Throws TemplateFileError if the file cannot be read;
-// render() throws TemplateError (see render_template()).
 class TemplateBackend {
  public:
   explicit TemplateBackend(const std::filesystem::path& template_path);
@@ -57,7 +37,6 @@ class TemplateBackend {
   std::string template_;
 };
 
-// The Markdown backend; its template is markdown.inja.
 class MarkdownBackend : public TemplateBackend {
  public:
   static constexpr const char* kTemplateFile = "markdown.inja";

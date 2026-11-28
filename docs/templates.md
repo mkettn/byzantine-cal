@@ -86,4 +86,6 @@ std::string text = backend.render(calendar, language);   // TemplateFileError / 
 ```
 
 `calendar_to_json()` builds the data described above, and `render_template()` renders a template
-text with it. A new format needs its own template and a class like `MarkdownBackend` that names it.
+text with it. `TemplateFileError` (a `TemplateError`) is thrown for a template that cannot be read,
+and `TemplateError` for one that is invalid or fails to render, for whatever reason. A new format
+needs its own template and a class like `MarkdownBackend` that names it.

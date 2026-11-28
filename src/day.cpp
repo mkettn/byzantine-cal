@@ -19,7 +19,6 @@ std::string lower(std::string s) {
 
 DayResult fail(std::string msg) { return {std::nullopt, std::move(msg)}; }
 
-// Parses 1-2 digits from s; returns nullopt if not purely digits.
 std::optional<int> small_int(std::string_view s) {
   if (s.empty() || s.size() > 2) return std::nullopt;
   int v = 0;
@@ -59,7 +58,7 @@ DayResult parse_solar(const std::string& t) {
 DayResult parse_pascha(const std::string& t) {
   Day r;
   r.kind = Day::Kind::Pascha;
-  size_t i = 1;  // skip 'p'
+  size_t i = 1;
 
   if (i < t.size() && (t[i] == '+' || t[i] == '-')) {
     int sign = t[i] == '-' ? -1 : 1;
@@ -125,9 +124,6 @@ DayResult parse_day(const std::string& text) {
                                             : parse_solar(text);
 }
 
-// Weekday key grammar: either one range "mon..fri" (wrapping allowed, e.g.
-// "sat..mon") or a comma list of single days "wed,fri" / "sat". Lowercase only.
-// Returns the weekdays (0 = mon .. 6 = sun) it covers; sets err on failure.
 Weekdays parse_weekday_key(const std::string& key, std::string& err) {
   Weekdays days;
   auto one = [](const std::string& n) {  // lowercase names only

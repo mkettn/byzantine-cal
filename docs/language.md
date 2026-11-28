@@ -69,3 +69,15 @@ has `fallback: en_US`.
 Write `fr_FR.yaml` next to the others (or in your own `lang_dir`, see
 [Configuration](configuration.md)), with a `fallback` if it should reuse another language, and run
 with `--lang=fr_FR` or set `language: fr_FR`.
+
+## From C++
+
+`Language` (`src/language.h`) is created from a language file and a function that finds the file of
+another language by name, for the fallbacks. `month(1..12)`, `weekday(1..7)` (Monday is 1) and `ui()`
+give the words. It throws `ConfigFileError` if a file cannot be read or found, and `ConfigError` if
+a file is invalid or the months or weekdays are missing.
+
+```cpp
+auto find = [&](const std::string& name) { return config.find_language_file(name); };
+bcal::Language language(find("de_DE"), find);
+```

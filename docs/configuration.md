@@ -75,3 +75,16 @@ language: de_CH
 | The content is invalid | 1 |
 | No `language` is set (and no `--lang`) | 1 |
 | The template or the language file is not found in any directory | 2 |
+
+## From C++
+
+`ByzantineCalConfig` (`src/byzantine_cal_config.h`) reads the file. `find_file()` chooses the file as
+described above, and the constructor reads it. `find_template()` and `find_language_file()` return
+the path of a file, ready to use, or throw `ConfigFileError`. `ConfigFileError` is a `ConfigError`,
+and the messages of both name the file and the line.
+
+```cpp
+auto file = bcal::ByzantineCalConfig::find_file(path_from_option_C, installed_config);
+bcal::ByzantineCalConfig config(file);
+auto template_path = config.find_template("markdown.inja");
+```
