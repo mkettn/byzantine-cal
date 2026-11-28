@@ -18,7 +18,7 @@ with templates.
 
 - The user interface of the application (command line, messages, logs) is English. Translation is
   for the generated files only.
-- Documentation is in `docs/`. `README.md` only has build and run instructions. Comments in `src/`
+- Documentation is in `docs/`. `README.md` only has build and run instructions (the options and the exit status included). Comments in `src/`
   are 1-2 lines. Less is more.
 - Don't be overly defensive when programming.
 - Show messages with spdlog. Signal errors with exceptions.

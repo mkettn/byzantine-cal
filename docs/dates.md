@@ -27,7 +27,7 @@ A range is written `start..end`. Both ends are included.
 |---|---|
 | `01.02..14.02` | A range of fixed dates. |
 | `15.12..05.01` | An end before the start means the range crosses New Year. |
-| `p-49d..p` | A range between Pascha-relative dates. The end must not be before the start. |
+| `p-49d..p` | A range between Pascha-relative dates. The end must not be before the start (checked unless an end has a `<` or `>` shift). |
 | `01.01..p` | A mix of both. It is resolved within the year, and a range that ends before it starts is empty. |
 
 ## The calendar file
@@ -62,7 +62,8 @@ A calendar file is a YAML list with a single document. Every item is `date: valu
 - **Weekday keys** are lowercase and are either one range of weekdays (`mon..fri`, which may wrap:
   `sat..mon`) or a comma list (`wed,fri`). A range needs at least one weekday key.
 - **Later wins.** The same date, or overlapping weekdays in one range, may appear more than once.
-  The later entry replaces the earlier one for a day.
+  The later entry replaces the earlier one for a day, in the order of the file.
+- **An empty file is an error**, an empty list (`[]`) is valid.
 
 `byzantine-cal calendar.yml` checks a file. Problems are reported with the line they are on, for
 example an impossible date (`31.04`), an unknown rule or weekday, or a range without rules.
@@ -75,20 +76,21 @@ byzantine-cal --year=2026 --old calendar.yml
 ```
 
 `--year` generates the calendar of that year, 1 January to 31 December, and renders it with a
-[template](templates.md). Each day gets the data of the rule that applies to it, as the YAML of the
-rule on a single line, for example `no_meat` or `{name: Nativity, rule: no_fish}`.
+[template](templates.md). Each day gets the data of the entry that applies to it, as the YAML of
+its value on a single line, for example `Theophany`, `no_meat` or `{name: Nativity, rule: no_fish}`.
 
-- **Later rules win** where several apply to the same day, in the order of the file.
 - **All dates in the output are Gregorian.** `--old` is for a calendar written in the old (Julian)
   calendar: it adds 13 days to every fixed date, so the rule for 25.12. is found on 7 January.
   The shift also crosses year boundaries: 25.12. of the previous year lands on 7 January of the
   requested year. Weekday rules use the weekday of the shifted date.
 - **Pascha-relative dates are not shifted.** They refer to the Pascha of the requested year, and a
   date that falls outside the year is ignored.
-- **29.02.** exists only in leap years. In other years the entry has no effect, and a range with
-  29.02. as one of its ends is ignored as a whole.
+- **29.02.** exists only in leap years. In other years the entry has no effect for that date. A range
+  with 29.02. as one of its ends is skipped in a year where the date does not exist, but a range that
+  crosses New Year can still apply through the neighbouring year.
 - **Years** from 1 to 9999 are accepted. The 13-day difference between the calendars is exact from
-  1900 to 2099, and used for every year. The offset is meant to be small and is not checked.
+  1900 to 2099, and used for every year, also for the Gregorian date of Pascha, which is therefore
+  approximate outside that range. The offset is meant to be small and is not checked.
 
 ## Using it from C++
 
@@ -116,10 +118,9 @@ YAML.
 - **Weekdays** are numbers, 0 (Monday) to 6 (Sunday), in a `bcal::Weekdays` set. `all_weekdays()`
   has all of them.
 - **`add_day()` and `add_range()`** ignore dates that do not exist or fall outside the year. The ends
-  of a range are included, a range of fixed dates whose end is before its start crosses New Year,
-  and a range with a bound that does not exist is ignored as a whole.
-- **Days** are `CalendarDay`s: the `date`, the `weekday()`, `has_rule()` and the `data` string of the
-  rule, which is empty without one. `size()` is 365 or 366, and `pascha()` is the Gregorian date of
+  of a range are included, and a range of fixed dates whose end is before its start crosses New Year.
+- **Days** are `CalendarDay`s: the `date`, the `weekday()`, `has_rule()` and `data`, a
+  `std::optional<std::string>` that is empty without an entry. `size()` is 365 or 366, and `pascha()` is the Gregorian date of
   Pascha, not shifted by the offset.
 - **Errors:** the constructor throws `std::invalid_argument` for a year outside 1..9999, and `at()`
   throws `std::out_of_range` for a date that is not in the year.

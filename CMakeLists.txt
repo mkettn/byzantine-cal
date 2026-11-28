@@ -15,9 +15,7 @@ find_package(docopt REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(inja REQUIRED)
 
-# The program is installed to <prefix>/bin, the configuration (config/config.yaml), the
-# templates (tpl/) and the language files (lang/) to <prefix>/lib/byzantine-cal. The prefix is CMAKE_INSTALL_PREFIX
-# (default /usr/local); set it when configuring, e.g. -DCMAKE_INSTALL_PREFIX=/usr.
+# The installed config.yaml is looked for under the install prefix (see the README).
 set(BCAL_CONFIG_FILE "${CMAKE_INSTALL_PREFIX}/lib/byzantine-cal/config.yaml")
 
 add_library(bcal STATIC src/day.cpp src/validator.cpp src/pascha.cpp

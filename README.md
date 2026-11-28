@@ -1,7 +1,7 @@
 # byzantine-cal
 
 Orthodox fasting calendar tool. It reads a calendar file with dates and date ranges, checks it, and
-generates the calendar of a year from it as a text file, such as Markdown, with templates.
+generates the calendar of a year from it as Markdown, with a template.
 
 ## Build
 
@@ -60,12 +60,16 @@ byzantine-cal --year=2026 --lang=de_DE calendar.yml         # German month and w
 
 | Option | |
 |---|---|
+| `-h`, `--help`, `--version` | Show the help, or the version. |
 | `-v`, `-q` | Show debug output, or only errors. |
-| `--year=<year>` | Generate the calendar of this year. |
+| `-y`, `--year=<year>` | Generate the calendar of this year. |
 | `--old` | The calendar is in the old (Julian) calendar: shift the fixed dates by 13 days. Needs `--year`. |
 | `-o`, `--output=<file>` | Write the result to this file instead of stdout. Needs `--year`. |
 | `-C <file>` | The configuration file. Needs `--year`. |
 | `-l`, `--lang=<language>` | The language, overriding the configuration. Needs `--year`. |
+
+Without installing, run it from the build directory with a configuration that points at the sources,
+see [Running without installing](docs/configuration.md#running-without-installing).
 
 Exit status: `0` success, `1` the calendar file or the configuration is invalid or a template fails
 (errors are logged to stderr, with line numbers), `2` a file cannot be read (also a directory) or

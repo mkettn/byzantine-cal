@@ -69,12 +69,21 @@ language: de_CH
 
 ## Errors
 
-| Problem | Exit status |
-|---|---|
-| The file cannot be found or read | 2 |
-| The content is invalid | 1 |
-| No `language` is set (and no `--lang`) | 1 |
-| The template or the language file is not found in any directory | 2 |
+A configuration file that cannot be read, a template or language file that is not found, and an
+invalid configuration are errors, see the exit status in the [README](../README.md#run). So is a
+missing `language`, when neither the configuration nor `--lang` sets one.
+
+## Running without installing
+
+The installed configuration names `tpl` and `lang` next to itself, which only exists after
+installing. To run the program from the build directory, give it a configuration that points at the
+sources, with `-C` or as `bcal.yaml`:
+
+```yaml
+template_dir: [/path/to/byzantine-cal/tpl]
+lang_dir: [/path/to/byzantine-cal/lang]
+language: en_US
+```
 
 ## From C++
 

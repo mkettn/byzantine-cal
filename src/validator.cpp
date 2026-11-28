@@ -83,7 +83,7 @@ void check_range(Report& r, const YAML::Node& key_node, const std::string& key,
       continue;
     }
     std::string err;
-    parse_weekday_key(kv.first.Scalar(), err);  // validation only; later keys win
+    parse_weekday_key(kv.first.Scalar(), err);  // validation only
     if (!err.empty()) add(r, kv.first, err);
     check_range_rule(r, kv.second);
   }

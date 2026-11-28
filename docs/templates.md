@@ -1,18 +1,19 @@
 # Templates
 
 The output is produced by a *backend* that renders the calendar of a year with a template. The
-templates use [inja](https://github.com/pantor/inja), a template engine with a Jinja-like syntax, so
-a new output format (HTML, ICS, ...) is another template.
+templates use [inja](https://github.com/pantor/inja), a template engine with a Jinja-like syntax. The
+program renders Markdown with the template `markdown.inja`; another format (HTML, ICS, ...) needs
+another template and a backend class for it, see below.
 
 ## The Markdown template
 
 `tpl/markdown.inja` is the template of the Markdown backend, which is the one the program uses. It
 is installed with the program and found through the `template_dir` option of the
-[configuration](configuration.md): the first directory that has a file called `markdown.inja` wins.
-To change the output, copy it, edit the copy and put its directory first in `template_dir`.
+[configuration](configuration.md). To change the output, copy it, edit the copy and put its directory
+first in `template_dir`.
 
 The result has a heading with the year, the date of Pascha, and a table for each month that has a
-day with a rule.
+day with an entry.
 
 ## Data
 
@@ -35,8 +36,8 @@ A day has:
 | `year`, `month`, `day` | The parts of the date, as numbers. |
 | `weekday` | 1 (Monday) to 7 (Sunday). |
 | `weekday_name` | The name of the weekday in the language. |
-| `has_rule` | Whether a rule applies to the day. |
-| `data` | The data of that rule as one line of YAML, empty without a rule. |
+| `has_rule` | Whether an entry of the calendar file applies to the day. |
+| `data` | The YAML of the value of that entry on one line, empty without an entry. |
 
 `months[].name` is the name of the month in the language. All dates are Gregorian.
 
@@ -68,8 +69,8 @@ An example that lists the days with a rule:
 {% endfor %}
 ```
 
-A template that cannot be read is an error with exit status 2. A template that is invalid, or that
-fails when it is rendered (an unknown variable, a wrong argument), is an error with exit status 1.
+A template that cannot be read, is invalid, or fails when it is rendered (an unknown variable, a wrong
+argument) is an error, see the exit status in the [README](../README.md#run).
 
 ## From C++
 
@@ -78,12 +79,12 @@ whose path it is given. `MarkdownBackend` is the Markdown backend, and its templ
 `MarkdownBackend::kTemplateFile` (`markdown.inja`).
 
 ```cpp
-bcal::ByzantineCalConfig config(bcal::ByzantineCalConfig::find_file(std::nullopt, installed_config));
 bcal::MarkdownBackend backend(config.find_template(bcal::MarkdownBackend::kTemplateFile));
-auto find = [&](const std::string& name) { return config.find_language_file(name); };
-bcal::Language language(find("en_US"), find);
 std::string text = backend.render(calendar, language);   // TemplateFileError / TemplateError on failure
 ```
+
+`config` is a `ByzantineCalConfig` ([Configuration](configuration.md#from-c)) and `language` a
+`Language` ([Languages](language.md#from-c)).
 
 `calendar_to_json()` builds the data described above, and `render_template()` renders a template
 text with it. `TemplateFileError` (a `TemplateError`) is thrown for a template that cannot be read,
