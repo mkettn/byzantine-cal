@@ -131,7 +131,9 @@ The fallback is read first and the keys of the file replace its keys (`ui` entry
 the fallback of the fallback, and so on: `lang/de_AT.yaml` (`fallback: de_DE`) only holds the months,
 `de_DE.yaml` has `fallback: en_US`. A file is read only once: a reference to a file that was read
 already (a circular fallback) is logged as a warning and ignored. The months and weekdays have to be
-there at the end. The Markdown template escapes the texts; the calendar file itself is not translated.
+there at the end. The shipped Markdown template needs `ui.date`, `ui.weekday`, `ui.data` and `ui.pascha`,
+so the language (or a fallback) has to define them, or the template fails with a "variable not found"
+error. The template escapes the texts; the calendar file itself is not translated.
 
 ## Year calendar
 
@@ -207,4 +209,4 @@ byzantine-cal --year=2026 -C my-config.yaml calendar.yml
 byzantine-cal --year=2026 --lang=de_DE calendar.yml     # German month and weekday names
 ```
 
-Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file, template or `en.yaml` is found, `3` wrong command line.
+Exit status: `0` valid, `1` invalid (errors are logged to stderr with line numbers), `2` a file cannot be read (also a directory) or written (the output file, or stdout) or no configuration file, template or language file is found, `3` wrong command line.
